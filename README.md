@@ -29,7 +29,7 @@ latitude    longitude
 -43.014055556   147.205055556
 
 ## Ranged queries 
-Query to search within 1000m of 40.7253319,-74.0076834 and export results
+Query to search within 1000m of [40.7253319,-74.0076834](https://www.google.com/maps/search/40.7253319,-74.0076834?sa=X&ved=0ahUKEwjj06n16p_WAhWR8oMKHUMfA9oQ8gEIJzAA) and export results
 
 COPY (
 SELECT *
