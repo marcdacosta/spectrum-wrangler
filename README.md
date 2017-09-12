@@ -1,3 +1,5 @@
+![](https://s3.amazonaws.com/marcdacosta.com/img/radiowave.png)
+
 # What is Spectrum Wrangler?
 Spectrum Wrangler will download the most recent version of the FCC License View database, parse it into a PostGIS table, clean up the geo columns so they can be used to query on, and produce a spatial index on them.
 
