@@ -3,7 +3,7 @@
 ## data notes: ~31% have null values for location
 
 import psycopg2
-import urllib
+import requests
 import zipfile
 import os
 import shutil
@@ -18,32 +18,34 @@ if not os.path.exists(workingdir):
 
 #download fcc license data data from http://reboot.fcc.gov/license-view/
 
-print "Downloading from FCC server"
-licensezip_url = "http://data.fcc.gov/download/license-view/fcc-license-view-data-csv-format.zip"
-licensezip = urllib.URLopener()
-licensezip.retrieve(licensezip_url, workingdir + "fcc-license.zip")
+# print "Downloading from FCC server"
+# licensezip_url = "http://data.fcc.gov/download/license-view/fcc-license-view-data-csv-format.zip"
+# r = requests.get(licensezip_url, allow_redirects=True)  # to get content after redirection
+# zip_url = r.url # 'https://media.readthedocs.org/pdf/django/latest/django.pdf'
+# with open(workingdir + "fcc-license.zip", 'wb') as f:
+#     f.write(r.content)
 
-print "Unzipping file"
-zip_ref = zipfile.ZipFile(workingdir +  "fcc-license.zip", 'r')
-zip_ref.extractall(workingdir)
-zip_ref.close()
+# print "Unzipping file"
+# zip_ref = zipfile.ZipFile(workingdir +  "fcc-license.zip", 'r')
+# zip_ref.extractall(workingdir)
+# zip_ref.close()
 
-print "Checking if table exists"
-#remove old table if exists
-cur.execute("select * from information_schema.tables where table_name=%s", ('fcclicenses',))
-if (bool(cur.rowcount)):
-	cur.execute("DROP TABLE fcclicenses;")
-	conn.commit()
+# print "Checking if table exists"
+# #remove old table if exists
+# cur.execute("select * from information_schema.tables where table_name=%s", ('fcclicenses',))
+# if (bool(cur.rowcount)):
+# 	cur.execute("DROP TABLE fcclicenses;")
+# 	conn.commit()
 
-print "Creating table and loading data"
-cur.execute("CREATE TABLE fcclicenses (license_id float,   source_system varchar,   callsign varchar,   facility_id float,   frn varchar,   lic_name varchar,   common_name varchar,   radio_service_code varchar, radio_service_desc varchar, rollup_category_code varchar, rollup_category_desc varchar, grant_date date, expired_date date, cancellation_date date,  last_action_date  date, lic_status_code  varchar, lic_status_desc  varchar, rollup_status_code  varchar, rollup_status_desc  varchar, entity_type_code  varchar, entity_type_desc  varchar, rollup_entity_code  varchar, rollup_entity_desc  varchar, lic_address  varchar, lic_city  varchar, lic_state  varchar, lic_zip_code  varchar, lic_attention_line  varchar, contact_company  varchar, contact_name  varchar, contact_title  varchar, contact_address1  varchar, contact_address2  varchar, contact_city  varchar, contact_state  varchar, contact_zip  varchar, contact_country  varchar, contact_phone  varchar, contact_fax  varchar, contact_email  varchar, market_code  varchar, market_desc  varchar, channel_block  varchar, loc_type_code  varchar, loc_type_desc  varchar, loc_city  varchar, loc_county_code  varchar, loc_county_name  varchar, loc_state  varchar, loc_radius_op  float, loc_seq_id  float, loc_lat_deg  float, loc_lat_min  float, loc_lat_sec  float, loc_lat_dir  varchar, loc_long_deg  float, loc_long_min  float, loc_long_sec  float, loc_long_dir  varchar, hgt_structure  float, asr_num  varchar, antenna_id  float, ant_seq_id  float, ant_make  varchar, ant_model  varchar, ant_type_code  varchar, ant_type_desc  varchar, azimuth  float, beamwidth  float, polarization_code varchar,   frequency_id  float, freq_seq_id  varchar, freq_class_station_code  varchar, freq_class_station_desc  varchar, power_erp  float, power_output  float, frequency_assigned  float, frequency_upper_band  float, unit_of_measure  varchar, tolerance  float, emission_id  float, emission_seq_id  float, emission_code  varchar, ground_elevation float);")
-conn.commit()
+# print "Creating table and loading data"
+# cur.execute("CREATE TABLE fcclicenses (license_id float,   source_system varchar,   callsign varchar,   facility_id float,   frn varchar,   lic_name varchar,   common_name varchar,   radio_service_code varchar, radio_service_desc varchar, rollup_category_code varchar, rollup_category_desc varchar, grant_date date, expired_date date, cancellation_date date,  last_action_date  date, lic_status_code  varchar, lic_status_desc  varchar, rollup_status_code  varchar, rollup_status_desc  varchar, entity_type_code  varchar, entity_type_desc  varchar, rollup_entity_code  varchar, rollup_entity_desc  varchar, lic_address  varchar, lic_city  varchar, lic_state  varchar, lic_zip_code  varchar, lic_attention_line  varchar, contact_company  varchar, contact_name  varchar, contact_title  varchar, contact_address1  varchar, contact_address2  varchar, contact_city  varchar, contact_state  varchar, contact_zip  varchar, contact_country  varchar, contact_phone  varchar, contact_fax  varchar, contact_email  varchar, market_code  varchar, market_desc  varchar, channel_block  varchar, loc_type_code  varchar, loc_type_desc  varchar, loc_city  varchar, loc_county_code  varchar, loc_county_name  varchar, loc_state  varchar, loc_radius_op  float, loc_seq_id  float, loc_lat_deg  float, loc_lat_min  float, loc_lat_sec  float, loc_lat_dir  varchar, loc_long_deg  float, loc_long_min  float, loc_long_sec  float, loc_long_dir  varchar, hgt_structure  float, asr_num  varchar, antenna_id  float, ant_seq_id  float, ant_make  varchar, ant_model  varchar, ant_type_code  varchar, ant_type_desc  varchar, azimuth  float, beamwidth  float, polarization_code varchar,   frequency_id  float, freq_seq_id  varchar, freq_class_station_code  varchar, freq_class_station_desc  varchar, power_erp  float, power_output  float, frequency_assigned  float, frequency_upper_band  float, unit_of_measure  varchar, tolerance  float, emission_id  float, emission_seq_id  float, emission_code  varchar, ground_elevation float);")
+# conn.commit()
 
-cur.execute("COPY fcclicenses FROM %s CSV HEADER;", (workingdir + "fcc_lic_vw.csv",))
-conn.commit()
+# cur.execute("COPY fcclicenses FROM %s CSV HEADER;", (workingdir + "fcc_lic_vw.csv",))
+# conn.commit()
 
-print "Removing cached files"
-shutil.rmtree(workingdir)
+# print "Removing cached files"
+# shutil.rmtree(workingdir)
 
 def addDMS2DDextension():
 	cur.execute("""\
@@ -142,14 +144,14 @@ def geoindextable():
 		CONCAT  (LOC_LONG_DEG, '° ', LOC_LONG_MIN, ''' ', LOC_LONG_SEC, '" ', LOC_LONG_DIR )),9)
 		WHERE LOC_LONG_DEG > 0 and LOC_LONG_MIN > 0 and LOC_LONG_SEC > 0 and LOC_LONG_DIR is not null
 		""")
-	cur.execute("CREATE EXTENSION postgis")
-	cur.execute("alter table fcclicenses ADD COLUMN geom geometry(POINT,4326)")
+	#cur.execute("CREATE EXTENSION postgis")
+	#cur.execute("alter table fcclicenses ADD COLUMN geom geometry(POINT,4326)")
 	cur.execute("update fcclicenses SET geom = ST_SetSRID(ST_MakePoint(long,lat),4326)")
 	cur.execute("create index idx_geom on fcclicenses using GIST(geom)")
 	conn.commit()
 
-print "Adding DMS2DD PostGIS extension"
-addDMS2DDextension()
+#print "Adding DMS2DD PostGIS extension"
+#addDMS2DDextension()
 print "Geo-indexing table"
 geoindextable()
 print "Done"
