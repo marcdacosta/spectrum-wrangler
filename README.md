@@ -12,6 +12,9 @@ In the United States the Federal Communication Commission is resposible for regu
 * Ensure that you have read/write privlidges to `workingdir` specified in `load.py`
 * Run `python load.py` 
 
+# How to use (alternate)
+* A project to Dockerize `spectrum-wrangler` can be found [here](https://github.com/brannondorsey/spectrum-wrangler-docker)
+
 
 # Requirements
 * Access to a [PostGIS database server](http://postgis.net/install/)
