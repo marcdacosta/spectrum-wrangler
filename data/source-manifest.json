@@ -1,0 +1,994 @@
+{
+  "data_profile": "lossless FCC raw tables plus indexed normalized query tables",
+  "fcc_documentation": "https://www.fcc.gov/wireless/data/public-access-files-database-downloads",
+  "generated_at": "2026-08-29T02:59:52+00:00",
+  "sources": [
+    {
+      "authority": "Federal Communications Commission, Universal Licensing System",
+      "byte_size": 197462203,
+      "etag": "\"bc508bb-659b690c58298\"",
+      "last_modified": "Sun, 23 Aug 2026 13:08:28 GMT",
+      "notes": "All FCC fields are retained in raw_* tables; common fields are also normalized and indexed.",
+      "published_at": "Sun, 23 Aug 2026 13:08:28 GMT",
+      "raw_parser_version": 2,
+      "record_counts": {
+        "amateur": 1691808,
+        "entities": 1694070,
+        "licenses": 1694070,
+        "raw.AM": 1691808,
+        "raw.CO": 235189,
+        "raw.EN": 1694070,
+        "raw.HD": 1694070,
+        "raw.HS": 5144113,
+        "raw.LA": 4785,
+        "raw.SC": 61766,
+        "raw.SF": 86
+      },
+      "retrieved_at": "2026-08-29T01:50:58+00:00",
+      "schema_drift": {
+        "CO": {
+          "documented_fields": 8,
+          "maximum_observed_fields": 8,
+          "minimum_observed_fields": 6,
+          "rows_with_missing_trailing_fields": 10
+        }
+      },
+      "sha256": "ec246ae44b6a08d349597c4ca04a79ff6a66b4d6b57cf11f2bd195a021caafcc",
+      "source_key": "uls-complete:l_amat.zip:ec246ae44b6a08d349597c4ca04a79ff6a66b4d6b57cf11f2bd195a021caafcc",
+      "url": "https://data.fcc.gov/download/pub/uls/complete/l_amat.zip"
+    },
+    {
+      "authority": "Federal Communications Commission, Universal Licensing System",
+      "byte_size": 7644647,
+      "etag": "\"74a5e7-659b6c7713cd8\"",
+      "last_modified": "Sun, 23 Aug 2026 13:23:45 GMT",
+      "notes": "All FCC fields are retained in raw_* tables; common fields are also normalized and indexed.",
+      "published_at": "Sun, 23 Aug 2026 13:23:45 GMT",
+      "raw_parser_version": 2,
+      "record_counts": {
+        "antennas": 26331,
+        "emissions": 52823,
+        "entities": 31212,
+        "frequencies": 49231,
+        "licenses": 21564,
+        "locations": 25795,
+        "raw.AN": 26331,
+        "raw.AS": 102,
+        "raw.BC": 21480,
+        "raw.BF": 4014,
+        "raw.CO": 133108,
+        "raw.CP": 5275,
+        "raw.EM": 52823,
+        "raw.EN": 31212,
+        "raw.FF": 107,
+        "raw.FR": 49231,
+        "raw.HD": 21564,
+        "raw.HS": 488836,
+        "raw.IR": 604,
+        "raw.LA": 395,
+        "raw.LF": 35,
+        "raw.LM": 21564,
+        "raw.LO": 25795,
+        "raw.LS": 37,
+        "raw.OP": 7557,
+        "raw.SC": 4417,
+        "raw.SF": 4895
+      },
+      "retrieved_at": "2026-08-29T01:52:59+00:00",
+      "schema_drift": {
+        "CO": {
+          "documented_fields": 8,
+          "maximum_observed_fields": 8,
+          "minimum_observed_fields": 6,
+          "rows_with_missing_trailing_fields": 38
+        },
+        "CP": {
+          "documented_fields": 14,
+          "maximum_observed_fields": 14,
+          "minimum_observed_fields": 8,
+          "rows_with_missing_trailing_fields": 188
+        },
+        "FF": {
+          "documented_fields": 13,
+          "maximum_observed_fields": 13,
+          "minimum_observed_fields": 11,
+          "rows_with_missing_trailing_fields": 13
+        },
+        "LF": {
+          "documented_fields": 10,
+          "maximum_observed_fields": 10,
+          "minimum_observed_fields": 8,
+          "rows_with_missing_trailing_fields": 1
+        },
+        "LM": {
+          "documented_fields": 9,
+          "maximum_observed_fields": 9,
+          "minimum_observed_fields": 7,
+          "rows_with_missing_trailing_fields": 25
+        },
+        "OP": {
+          "documented_fields": 10,
+          "maximum_observed_fields": 10,
+          "minimum_observed_fields": 8,
+          "rows_with_missing_trailing_fields": 3
+        },
+        "SF": {
+          "documented_fields": 11,
+          "maximum_observed_fields": 11,
+          "minimum_observed_fields": 9,
+          "rows_with_missing_trailing_fields": 99
+        }
+      },
+      "sha256": "abbadf30f58be4df2ee61bd8bd3d253413fadb7e914a825ebb5f2f046525176a",
+      "source_key": "uls-complete:l_LMbcast.zip:abbadf30f58be4df2ee61bd8bd3d253413fadb7e914a825ebb5f2f046525176a",
+      "url": "https://data.fcc.gov/download/pub/uls/complete/l_LMbcast.zip"
+    },
+    {
+      "authority": "Federal Communications Commission, Universal Licensing System",
+      "byte_size": 80109306,
+      "etag": "\"4c65efa-659b6c41dacd8\"",
+      "last_modified": "Sun, 23 Aug 2026 13:22:49 GMT",
+      "notes": "All FCC fields are retained in raw_* tables; common fields are also normalized and indexed.",
+      "published_at": "Sun, 23 Aug 2026 13:22:49 GMT",
+      "raw_parser_version": 2,
+      "record_counts": {
+        "antennas": 190266,
+        "emissions": 6189330,
+        "entities": 153218,
+        "frequencies": 2237490,
+        "licenses": 81067,
+        "locations": 185177,
+        "raw.A3": 10455,
+        "raw.AN": 190266,
+        "raw.AS": 4554,
+        "raw.BF": 769095,
+        "raw.CO": 301235,
+        "raw.CP": 78940,
+        "raw.EC": 27,
+        "raw.EM": 6189330,
+        "raw.EN": 153218,
+        "raw.F3": 10455,
+        "raw.F5": 58,
+        "raw.F6": 59,
+        "raw.FF": 109,
+        "raw.FR": 2237490,
+        "raw.HD": 81067,
+        "raw.HS": 1337078,
+        "raw.IR": 58538,
+        "raw.L3": 10455,
+        "raw.L4": 16,
+        "raw.L5": 2479,
+        "raw.L6": 4,
+        "raw.LA": 9008,
+        "raw.LC": 1805,
+        "raw.LF": 596,
+        "raw.LL": 1799,
+        "raw.LM": 78952,
+        "raw.LO": 185177,
+        "raw.LS": 3157,
+        "raw.O2": 8200,
+        "raw.OP": 886,
+        "raw.SC": 69559,
+        "raw.SF": 62359
+      },
+      "retrieved_at": "2026-08-29T01:53:03+00:00",
+      "schema_drift": {
+        "CO": {
+          "documented_fields": 8,
+          "maximum_observed_fields": 8,
+          "minimum_observed_fields": 3,
+          "rows_with_missing_trailing_fields": 4025
+        },
+        "CP": {
+          "documented_fields": 14,
+          "maximum_observed_fields": 14,
+          "minimum_observed_fields": 8,
+          "rows_with_missing_trailing_fields": 257
+        },
+        "EC": {
+          "documented_fields": 8,
+          "maximum_observed_fields": 10,
+          "minimum_observed_fields": 10,
+          "rows_with_extra_fields": 27
+        },
+        "FF": {
+          "documented_fields": 13,
+          "maximum_observed_fields": 13,
+          "minimum_observed_fields": 11,
+          "rows_with_missing_trailing_fields": 1
+        },
+        "LF": {
+          "documented_fields": 10,
+          "maximum_observed_fields": 10,
+          "minimum_observed_fields": 8,
+          "rows_with_missing_trailing_fields": 1
+        },
+        "LM": {
+          "documented_fields": 9,
+          "maximum_observed_fields": 9,
+          "minimum_observed_fields": 7,
+          "rows_with_missing_trailing_fields": 22
+        },
+        "SF": {
+          "documented_fields": 11,
+          "maximum_observed_fields": 11,
+          "minimum_observed_fields": 9,
+          "rows_with_missing_trailing_fields": 3065
+        }
+      },
+      "sha256": "0dd3e6fe67e9be4d5fbc8236b20d77af3708b796c688d4fd5f568aaa64335aa4",
+      "source_key": "uls-complete:l_LMcomm.zip:0dd3e6fe67e9be4d5fbc8236b20d77af3708b796c688d4fd5f568aaa64335aa4",
+      "url": "https://data.fcc.gov/download/pub/uls/complete/l_LMcomm.zip"
+    },
+    {
+      "authority": "Federal Communications Commission, Universal Licensing System",
+      "byte_size": 419411523,
+      "etag": "\"18ffb643-659b6b90b2050\"",
+      "last_modified": "Sun, 23 Aug 2026 13:19:43 GMT",
+      "notes": "All FCC fields are retained in raw_* tables; common fields are also normalized and indexed.",
+      "published_at": "Sun, 23 Aug 2026 13:19:43 GMT",
+      "raw_parser_version": 2,
+      "record_counts": {
+        "antennas": 2049094,
+        "emissions": 9322775,
+        "entities": 1523447,
+        "frequencies": 5699357,
+        "licenses": 859283,
+        "locations": 2002264,
+        "raw.A3": 3942,
+        "raw.AN": 2049094,
+        "raw.AS": 126812,
+        "raw.BF": 3225384,
+        "raw.CO": 516337,
+        "raw.CP": 929167,
+        "raw.EM": 9322775,
+        "raw.EN": 1523447,
+        "raw.F2": 37777,
+        "raw.F3": 3942,
+        "raw.F5": 8,
+        "raw.F6": 2,
+        "raw.FF": 13214,
+        "raw.FR": 5699430,
+        "raw.HD": 859283,
+        "raw.HS": 7625435,
+        "raw.IR": 41891,
+        "raw.L2": 53396,
+        "raw.L3": 3942,
+        "raw.L4": 51,
+        "raw.L5": 86,
+        "raw.L6": 18,
+        "raw.LA": 51841,
+        "raw.LC": 585,
+        "raw.LF": 14679,
+        "raw.LL": 585,
+        "raw.LM": 857768,
+        "raw.LO": 2002264,
+        "raw.LS": 47497,
+        "raw.MF": 106,
+        "raw.MK": 56,
+        "raw.O2": 19,
+        "raw.OP": 91638,
+        "raw.SC": 208540,
+        "raw.SF": 109601
+      },
+      "retrieved_at": "2026-08-29T01:53:53+00:00",
+      "schema_drift": {
+        "CO": {
+          "documented_fields": 8,
+          "maximum_observed_fields": 9,
+          "minimum_observed_fields": 6,
+          "rows_with_extra_fields": 1,
+          "rows_with_missing_trailing_fields": 7605
+        },
+        "CP": {
+          "documented_fields": 14,
+          "maximum_observed_fields": 15,
+          "minimum_observed_fields": 8,
+          "rows_with_extra_fields": 2,
+          "rows_with_missing_trailing_fields": 5578
+        },
+        "EN": {
+          "documented_fields": 30,
+          "maximum_observed_fields": 31,
+          "minimum_observed_fields": 30,
+          "rows_with_extra_fields": 2
+        },
+        "FF": {
+          "documented_fields": 13,
+          "maximum_observed_fields": 13,
+          "minimum_observed_fields": 11,
+          "rows_with_missing_trailing_fields": 1305
+        },
+        "HD": {
+          "documented_fields": 59,
+          "maximum_observed_fields": 60,
+          "minimum_observed_fields": 59,
+          "rows_with_extra_fields": 1
+        },
+        "LF": {
+          "documented_fields": 10,
+          "maximum_observed_fields": 10,
+          "minimum_observed_fields": 8,
+          "rows_with_missing_trailing_fields": 739
+        },
+        "LM": {
+          "documented_fields": 9,
+          "maximum_observed_fields": 9,
+          "minimum_observed_fields": 7,
+          "rows_with_missing_trailing_fields": 544
+        },
+        "OP": {
+          "documented_fields": 10,
+          "maximum_observed_fields": 10,
+          "minimum_observed_fields": 8,
+          "rows_with_missing_trailing_fields": 184
+        },
+        "SF": {
+          "documented_fields": 11,
+          "maximum_observed_fields": 12,
+          "minimum_observed_fields": 9,
+          "rows_with_extra_fields": 1,
+          "rows_with_missing_trailing_fields": 16219
+        }
+      },
+      "sha256": "9858e583264f319a0d504197c6a10f7732e35f043ed1aa49f9f70b4dff38159f",
+      "source_key": "uls-complete:l_LMpriv.zip:9858e583264f319a0d504197c6a10f7732e35f043ed1aa49f9f70b4dff38159f",
+      "url": "https://data.fcc.gov/download/pub/uls/complete/l_LMpriv.zip"
+    },
+    {
+      "authority": "Federal Communications Commission, Universal Licensing System",
+      "byte_size": 15371381,
+      "etag": "\"ea8c75-659b724bc9590\"",
+      "last_modified": "Sun, 23 Aug 2026 13:49:50 GMT",
+      "notes": "All FCC fields are retained in raw_* tables; common fields are also normalized and indexed.",
+      "published_at": "Sun, 23 Aug 2026 13:49:50 GMT",
+      "raw_parser_version": 2,
+      "record_counts": {
+        "entities": 152489,
+        "licenses": 152489,
+        "raw.AC": 152488,
+        "raw.CO": 3589,
+        "raw.EN": 152489,
+        "raw.HD": 152489,
+        "raw.HS": 365371,
+        "raw.LA": 40,
+        "raw.SC": 2987,
+        "raw.SF": 122
+      },
+      "retrieved_at": "2026-08-29T01:55:52+00:00",
+      "schema_drift": {
+        "EN": {
+          "documented_fields": 30,
+          "maximum_observed_fields": 32,
+          "minimum_observed_fields": 30,
+          "rows_with_extra_fields": 5
+        },
+        "HD": {
+          "documented_fields": 59,
+          "maximum_observed_fields": 60,
+          "minimum_observed_fields": 59,
+          "rows_with_extra_fields": 4
+        },
+        "SF": {
+          "documented_fields": 11,
+          "maximum_observed_fields": 11,
+          "minimum_observed_fields": 9,
+          "rows_with_missing_trailing_fields": 5
+        }
+      },
+      "sha256": "e20f196822150804d3902caced7db16c7b44e4902eaece1659bf845b5508c0e6",
+      "source_key": "uls-complete:l_aircr.zip:e20f196822150804d3902caced7db16c7b44e4902eaece1659bf845b5508c0e6",
+      "url": "https://data.fcc.gov/download/pub/uls/complete/l_aircr.zip"
+    },
+    {
+      "authority": "Federal Communications Commission, Universal Licensing System",
+      "byte_size": 24696719,
+      "etag": "\"178d78f-659b713b57028\"",
+      "last_modified": "Sun, 23 Aug 2026 13:45:04 GMT",
+      "notes": "All FCC fields are retained in raw_* tables; common fields are also normalized and indexed.",
+      "published_at": "Sun, 23 Aug 2026 13:45:04 GMT",
+      "raw_parser_version": 2,
+      "record_counts": {
+        "antennas": 58973,
+        "entities": 13972,
+        "frequencies": 236624,
+        "licenses": 5457,
+        "locations": 25102,
+        "raw.A3": 606455,
+        "raw.AN": 58973,
+        "raw.BL": 14377,
+        "raw.CO": 7031,
+        "raw.CP": 1879,
+        "raw.EC": 2394,
+        "raw.EN": 13972,
+        "raw.F3": 606455,
+        "raw.FR": 236654,
+        "raw.HD": 5457,
+        "raw.HS": 119074,
+        "raw.L3": 606917,
+        "raw.L4": 3186,
+        "raw.L5": 11154,
+        "raw.L6": 198,
+        "raw.LA": 160,
+        "raw.LC": 3162,
+        "raw.LF": 5,
+        "raw.LL": 3162,
+        "raw.LO": 25102,
+        "raw.LS": 511,
+        "raw.MK": 2607,
+        "raw.RA": 943032,
+        "raw.SC": 1035,
+        "raw.SF": 2700,
+        "raw.SI": 2474,
+        "raw.ST": 468
+      },
+      "retrieved_at": "2026-08-29T01:55:56+00:00",
+      "schema_drift": {
+        "CO": {
+          "documented_fields": 8,
+          "maximum_observed_fields": 8,
+          "minimum_observed_fields": 6,
+          "rows_with_missing_trailing_fields": 930
+        },
+        "CP": {
+          "documented_fields": 14,
+          "maximum_observed_fields": 14,
+          "minimum_observed_fields": 8,
+          "rows_with_missing_trailing_fields": 7
+        },
+        "EC": {
+          "documented_fields": 8,
+          "maximum_observed_fields": 10,
+          "minimum_observed_fields": 10,
+          "rows_with_extra_fields": 2394
+        },
+        "SF": {
+          "documented_fields": 11,
+          "maximum_observed_fields": 11,
+          "minimum_observed_fields": 9,
+          "rows_with_missing_trailing_fields": 116
+        }
+      },
+      "sha256": "16f9a506eab5cae8a176b47cf0ad2eeb5b4bd7348321ee1eac8b05b574809abb",
+      "source_key": "uls-complete:l_cell.zip:16f9a506eab5cae8a176b47cf0ad2eeb5b4bd7348321ee1eac8b05b574809abb",
+      "url": "https://data.fcc.gov/download/pub/uls/complete/l_cell.zip"
+    },
+    {
+      "authority": "Federal Communications Commission, Universal Licensing System",
+      "byte_size": 10036325,
+      "etag": "\"992465-659b722253940\"",
+      "last_modified": "Sun, 23 Aug 2026 13:49:07 GMT",
+      "notes": "All FCC fields are retained in raw_* tables; common fields are also normalized and indexed.",
+      "published_at": "Sun, 23 Aug 2026 13:49:07 GMT",
+      "raw_parser_version": 2,
+      "record_counts": {
+        "antennas": 40244,
+        "emissions": 110798,
+        "entities": 59630,
+        "frequencies": 102285,
+        "licenses": 35810,
+        "locations": 36995,
+        "raw.AN": 40244,
+        "raw.BF": 5588,
+        "raw.CG": 35792,
+        "raw.CO": 1629,
+        "raw.CP": 9909,
+        "raw.EM": 110798,
+        "raw.EN": 59630,
+        "raw.FF": 602,
+        "raw.FR": 102316,
+        "raw.FT": 1933,
+        "raw.HD": 35810,
+        "raw.HS": 286947,
+        "raw.IR": 21560,
+        "raw.LA": 3876,
+        "raw.LF": 10,
+        "raw.LO": 36995,
+        "raw.OP": 3297,
+        "raw.SC": 9969,
+        "raw.SF": 9545
+      },
+      "retrieved_at": "2026-08-29T01:55:58+00:00",
+      "schema_drift": {
+        "CG": {
+          "documented_fields": 43,
+          "maximum_observed_fields": 43,
+          "minimum_observed_fields": 10,
+          "rows_with_missing_trailing_fields": 183
+        },
+        "CP": {
+          "documented_fields": 14,
+          "maximum_observed_fields": 14,
+          "minimum_observed_fields": 8,
+          "rows_with_missing_trailing_fields": 351
+        },
+        "FF": {
+          "documented_fields": 13,
+          "maximum_observed_fields": 13,
+          "minimum_observed_fields": 11,
+          "rows_with_missing_trailing_fields": 20
+        },
+        "LF": {
+          "documented_fields": 10,
+          "maximum_observed_fields": 10,
+          "minimum_observed_fields": 8,
+          "rows_with_missing_trailing_fields": 1
+        },
+        "OP": {
+          "documented_fields": 10,
+          "maximum_observed_fields": 10,
+          "minimum_observed_fields": 8,
+          "rows_with_missing_trailing_fields": 24
+        },
+        "SF": {
+          "documented_fields": 11,
+          "maximum_observed_fields": 11,
+          "minimum_observed_fields": 9,
+          "rows_with_missing_trailing_fields": 1233
+        }
+      },
+      "sha256": "20a869e382e3668cc7236e276679cd8370709fa3ff660b09ba8341685721adfa",
+      "source_key": "uls-complete:l_coast.zip:20a869e382e3668cc7236e276679cd8370709fa3ff660b09ba8341685721adfa",
+      "url": "https://data.fcc.gov/download/pub/uls/complete/l_coast.zip"
+    },
+    {
+      "authority": "Federal Communications Commission, Universal Licensing System",
+      "byte_size": 66342068,
+      "etag": "\"3f44cb4-659b72c0690f8\"",
+      "last_modified": "Sun, 23 Aug 2026 13:51:52 GMT",
+      "notes": "All FCC fields are retained in raw_* tables; common fields are also normalized and indexed.",
+      "published_at": "Sun, 23 Aug 2026 13:51:52 GMT",
+      "raw_parser_version": 2,
+      "record_counts": {
+        "entities": 790180,
+        "licenses": 790180,
+        "raw.CO": 275,
+        "raw.EN": 790180,
+        "raw.FA": 790179,
+        "raw.HD": 790180,
+        "raw.HS": 1067881,
+        "raw.IA": 19708,
+        "raw.LA": 154,
+        "raw.SC": 165033,
+        "raw.SF": 48
+      },
+      "retrieved_at": "2026-08-29T01:56:03+00:00",
+      "schema_drift": {
+        "EN": {
+          "documented_fields": 30,
+          "maximum_observed_fields": 32,
+          "minimum_observed_fields": 9,
+          "rows_with_extra_fields": 1,
+          "rows_with_missing_trailing_fields": 22
+        },
+        "HD": {
+          "documented_fields": 59,
+          "maximum_observed_fields": 60,
+          "minimum_observed_fields": 33,
+          "rows_with_extra_fields": 2,
+          "rows_with_missing_trailing_fields": 2
+        },
+        "IA": {
+          "documented_fields": 12,
+          "maximum_observed_fields": 13,
+          "minimum_observed_fields": 12,
+          "rows_with_extra_fields": 2
+        }
+      },
+      "sha256": "e1133067b0ce3bf022427c96e90697a3970f3986061b46db29645bfff7df826d",
+      "source_key": "uls-complete:l_frc.zip:e1133067b0ce3bf022427c96e90697a3970f3986061b46db29645bfff7df826d",
+      "url": "https://data.fcc.gov/download/pub/uls/complete/l_frc.zip"
+    },
+    {
+      "authority": "Federal Communications Commission, Universal Licensing System",
+      "byte_size": 53745069,
+      "etag": "\"33415ad-659b72f01f6a8\"",
+      "last_modified": "Sun, 23 Aug 2026 13:52:42 GMT",
+      "notes": "All FCC fields are retained in raw_* tables; common fields are also normalized and indexed.",
+      "published_at": "Sun, 23 Aug 2026 13:52:42 GMT",
+      "raw_parser_version": 2,
+      "record_counts": {
+        "entities": 606635,
+        "licenses": 606635,
+        "raw.CO": 85,
+        "raw.EN": 606635,
+        "raw.HD": 606635,
+        "raw.HS": 1043857,
+        "raw.LA": 158,
+        "raw.SC": 154266
+      },
+      "retrieved_at": "2026-08-29T01:56:21+00:00",
+      "schema_drift": {
+        "EN": {
+          "documented_fields": 30,
+          "maximum_observed_fields": 36,
+          "minimum_observed_fields": 30,
+          "rows_with_extra_fields": 3
+        },
+        "HD": {
+          "documented_fields": 59,
+          "maximum_observed_fields": 61,
+          "minimum_observed_fields": 59,
+          "rows_with_extra_fields": 3
+        }
+      },
+      "sha256": "58dad733733cd04060e6a375640568e2d77a42a28e67f4fdcd8b9f7939ccd74c",
+      "source_key": "uls-complete:l_gmrs.zip:58dad733733cd04060e6a375640568e2d77a42a28e67f4fdcd8b9f7939ccd74c",
+      "url": "https://data.fcc.gov/download/pub/uls/complete/l_gmrs.zip"
+    },
+    {
+      "authority": "Federal Communications Commission, Universal Licensing System",
+      "byte_size": 89032637,
+      "etag": "\"54e87bd-659b70d8e7ca8\"",
+      "last_modified": "Sun, 23 Aug 2026 13:43:21 GMT",
+      "notes": "All FCC fields are retained in raw_* tables; common fields are also normalized and indexed.",
+      "published_at": "Sun, 23 Aug 2026 13:43:21 GMT",
+      "raw_parser_version": 2,
+      "record_counts": {
+        "antennas": 14472,
+        "emissions": 2747,
+        "entities": 413047,
+        "frequencies": 10908,
+        "licenses": 173502,
+        "locations": 19113,
+        "raw.AN": 14472,
+        "raw.BO": 133020,
+        "raw.CO": 76093,
+        "raw.EC": 17356,
+        "raw.EM": 2747,
+        "raw.EN": 413047,
+        "raw.FR": 10908,
+        "raw.HD": 173502,
+        "raw.HS": 1359079,
+        "raw.IF": 4,
+        "raw.LA": 62130,
+        "raw.LC": 62188,
+        "raw.LF": 2,
+        "raw.LL": 62187,
+        "raw.LO": 19113,
+        "raw.MC": 6614825,
+        "raw.MF": 338329,
+        "raw.MK": 173440,
+        "raw.MP": 256478,
+        "raw.PC": 18,
+        "raw.RA": 9328,
+        "raw.SC": 49777,
+        "raw.SF": 114990,
+        "raw.TL": 345
+      },
+      "retrieved_at": "2026-08-29T01:56:31+00:00",
+      "schema_drift": {
+        "CO": {
+          "documented_fields": 8,
+          "maximum_observed_fields": 8,
+          "minimum_observed_fields": 6,
+          "rows_with_missing_trailing_fields": 48
+        },
+        "EC": {
+          "documented_fields": 8,
+          "maximum_observed_fields": 10,
+          "minimum_observed_fields": 10,
+          "rows_with_extra_fields": 17356
+        },
+        "SF": {
+          "documented_fields": 11,
+          "maximum_observed_fields": 11,
+          "minimum_observed_fields": 9,
+          "rows_with_missing_trailing_fields": 4006
+        }
+      },
+      "sha256": "ef3086670dd582bf7ee5144ced2ac47a6637ea95acf0c236cbb727c7ce7810af",
+      "source_key": "uls-complete:l_market.zip:ef3086670dd582bf7ee5144ced2ac47a6637ea95acf0c236cbb727c7ce7810af",
+      "url": "https://data.fcc.gov/download/pub/uls/complete/l_market.zip"
+    },
+    {
+      "authority": "Federal Communications Commission, Universal Licensing System",
+      "byte_size": 14858046,
+      "etag": "\"e2b73e-659b71eaab0b0\"",
+      "last_modified": "Sun, 23 Aug 2026 13:48:08 GMT",
+      "notes": "All FCC fields are retained in raw_* tables; common fields are also normalized and indexed.",
+      "published_at": "Sun, 23 Aug 2026 13:48:08 GMT",
+      "raw_parser_version": 2,
+      "record_counts": {
+        "antennas": 1078,
+        "emissions": 5570,
+        "entities": 44119,
+        "frequencies": 3309,
+        "licenses": 18805,
+        "locations": 10009,
+        "raw.AN": 1079,
+        "raw.BC": 4331,
+        "raw.BE": 10115,
+        "raw.BF": 1166,
+        "raw.CO": 10260,
+        "raw.EC": 852,
+        "raw.EM": 5570,
+        "raw.EN": 44119,
+        "raw.F2": 3207,
+        "raw.FR": 3310,
+        "raw.HD": 18805,
+        "raw.HS": 238307,
+        "raw.L2": 199,
+        "raw.LA": 16309,
+        "raw.LC": 5472,
+        "raw.LF": 52,
+        "raw.LL": 5472,
+        "raw.LO": 10009,
+        "raw.MC": 1148633,
+        "raw.MF": 150054,
+        "raw.MH": 62609,
+        "raw.MK": 18788,
+        "raw.MP": 2964,
+        "raw.SC": 15429,
+        "raw.SF": 4325
+      },
+      "retrieved_at": "2026-08-29T01:56:35+00:00",
+      "schema_drift": {
+        "CO": {
+          "documented_fields": 8,
+          "maximum_observed_fields": 8,
+          "minimum_observed_fields": 6,
+          "rows_with_missing_trailing_fields": 2
+        },
+        "EC": {
+          "documented_fields": 8,
+          "maximum_observed_fields": 10,
+          "minimum_observed_fields": 10,
+          "rows_with_extra_fields": 852
+        },
+        "SF": {
+          "documented_fields": 11,
+          "maximum_observed_fields": 11,
+          "minimum_observed_fields": 9,
+          "rows_with_missing_trailing_fields": 164
+        }
+      },
+      "sha256": "e07c34dd31ba32d1621261c989195d2a9b1e9555cb7b91e32d4bb77551e73547",
+      "source_key": "uls-complete:l_mdsitfs.zip:e07c34dd31ba32d1621261c989195d2a9b1e9555cb7b91e32d4bb77551e73547",
+      "url": "https://data.fcc.gov/download/pub/uls/complete/l_mdsitfs.zip"
+    },
+    {
+      "authority": "Federal Communications Commission, Universal Licensing System",
+      "byte_size": 221318357,
+      "etag": "\"d310cd5-659b702240068\"",
+      "last_modified": "Sun, 23 Aug 2026 13:40:10 GMT",
+      "notes": "All FCC fields are retained in raw_* tables; common fields are also normalized and indexed.",
+      "published_at": "Sun, 23 Aug 2026 13:40:10 GMT",
+      "raw_parser_version": 2,
+      "record_counts": {
+        "antennas": 1468165,
+        "emissions": 3472244,
+        "entities": 705319,
+        "frequencies": 3016960,
+        "licenses": 366274,
+        "locations": 923615,
+        "raw.A3": 4789,
+        "raw.AN": 1469976,
+        "raw.AS": 3573,
+        "raw.BC": 35113,
+        "raw.BF": 2668801,
+        "raw.CO": 936268,
+        "raw.CP": 68140,
+        "raw.CS": 52727,
+        "raw.EC": 4,
+        "raw.EM": 3472244,
+        "raw.EN": 705319,
+        "raw.F2": 91600,
+        "raw.F3": 4789,
+        "raw.F5": 193,
+        "raw.F6": 321,
+        "raw.FF": 21917,
+        "raw.FR": 3017003,
+        "raw.HD": 366274,
+        "raw.HS": 4934855,
+        "raw.IR": 258619,
+        "raw.L2": 7647,
+        "raw.LA": 25339,
+        "raw.LC": 2380,
+        "raw.LF": 36134,
+        "raw.LL": 2380,
+        "raw.LM": 5742,
+        "raw.LO": 923615,
+        "raw.LS": 3692,
+        "raw.MF": 356,
+        "raw.MK": 4168,
+        "raw.MW": 360533,
+        "raw.OP": 2355,
+        "raw.P2": 4789,
+        "raw.PA": 687265,
+        "raw.RC": 15,
+        "raw.SC": 116416,
+        "raw.SF": 112479,
+        "raw.SG": 705728,
+        "raw.TP": 91593
+      },
+      "retrieved_at": "2026-08-29T01:56:41+00:00",
+      "schema_drift": {
+        "CO": {
+          "documented_fields": 8,
+          "maximum_observed_fields": 8,
+          "minimum_observed_fields": 6,
+          "rows_with_missing_trailing_fields": 1
+        },
+        "CP": {
+          "documented_fields": 14,
+          "maximum_observed_fields": 14,
+          "minimum_observed_fields": 8,
+          "rows_with_missing_trailing_fields": 6085
+        },
+        "EC": {
+          "documented_fields": 8,
+          "maximum_observed_fields": 10,
+          "minimum_observed_fields": 10,
+          "rows_with_extra_fields": 4
+        },
+        "F6": {
+          "documented_fields": 17,
+          "maximum_observed_fields": 17,
+          "minimum_observed_fields": 15,
+          "rows_with_missing_trailing_fields": 13
+        },
+        "FF": {
+          "documented_fields": 13,
+          "maximum_observed_fields": 13,
+          "minimum_observed_fields": 11,
+          "rows_with_missing_trailing_fields": 733
+        },
+        "LF": {
+          "documented_fields": 10,
+          "maximum_observed_fields": 10,
+          "minimum_observed_fields": 8,
+          "rows_with_missing_trailing_fields": 29
+        },
+        "LM": {
+          "documented_fields": 9,
+          "maximum_observed_fields": 9,
+          "minimum_observed_fields": 7,
+          "rows_with_missing_trailing_fields": 14
+        },
+        "OP": {
+          "documented_fields": 10,
+          "maximum_observed_fields": 10,
+          "minimum_observed_fields": 8,
+          "rows_with_missing_trailing_fields": 8
+        },
+        "SF": {
+          "documented_fields": 11,
+          "maximum_observed_fields": 12,
+          "minimum_observed_fields": 9,
+          "rows_with_extra_fields": 1,
+          "rows_with_missing_trailing_fields": 7840
+        },
+        "TP": {
+          "documented_fields": 14,
+          "maximum_observed_fields": 14,
+          "minimum_observed_fields": 11,
+          "rows_with_missing_trailing_fields": 639
+        }
+      },
+      "sha256": "57bda1fe21357c1cc6bc51f745c843a0aa5986c764d23502cdf251ffa2a9949e",
+      "source_key": "uls-complete:l_micro.zip:57bda1fe21357c1cc6bc51f745c843a0aa5986c764d23502cdf251ffa2a9949e",
+      "url": "https://data.fcc.gov/download/pub/uls/complete/l_micro.zip"
+    },
+    {
+      "authority": "Federal Communications Commission, Universal Licensing System",
+      "byte_size": 6468436,
+      "etag": "\"62b354-659b718556200\"",
+      "last_modified": "Sun, 23 Aug 2026 13:46:22 GMT",
+      "notes": "All FCC fields are retained in raw_* tables; common fields are also normalized and indexed.",
+      "published_at": "Sun, 23 Aug 2026 13:46:22 GMT",
+      "raw_parser_version": 2,
+      "record_counts": {
+        "antennas": 36108,
+        "emissions": 95051,
+        "entities": 17235,
+        "frequencies": 42045,
+        "licenses": 9604,
+        "locations": 31951,
+        "raw.A3": 5647,
+        "raw.AN": 36108,
+        "raw.BF": 39757,
+        "raw.CO": 8283,
+        "raw.CP": 7786,
+        "raw.EM": 95051,
+        "raw.EN": 17235,
+        "raw.F3": 5647,
+        "raw.F5": 31,
+        "raw.FF": 78,
+        "raw.FR": 42052,
+        "raw.HD": 9604,
+        "raw.HS": 123376,
+        "raw.L3": 5647,
+        "raw.L4": 25,
+        "raw.L5": 10,
+        "raw.L6": 10,
+        "raw.LA": 769,
+        "raw.LC": 441,
+        "raw.LF": 16,
+        "raw.LL": 441,
+        "raw.LO": 31951,
+        "raw.LS": 19,
+        "raw.PC": 1129,
+        "raw.RA": 315637,
+        "raw.SC": 628,
+        "raw.SF": 3175
+      },
+      "retrieved_at": "2026-08-29T01:57:42+00:00",
+      "schema_drift": {
+        "CP": {
+          "documented_fields": 14,
+          "maximum_observed_fields": 14,
+          "minimum_observed_fields": 8,
+          "rows_with_missing_trailing_fields": 5
+        },
+        "FF": {
+          "documented_fields": 13,
+          "maximum_observed_fields": 13,
+          "minimum_observed_fields": 11,
+          "rows_with_missing_trailing_fields": 2
+        },
+        "LF": {
+          "documented_fields": 10,
+          "maximum_observed_fields": 10,
+          "minimum_observed_fields": 8,
+          "rows_with_missing_trailing_fields": 1
+        },
+        "SF": {
+          "documented_fields": 11,
+          "maximum_observed_fields": 11,
+          "minimum_observed_fields": 9,
+          "rows_with_missing_trailing_fields": 54
+        }
+      },
+      "sha256": "3ab7ad77e0dbec5c82b13491e963923673a14e45ef9fa6ca0d77a82370e7fbc5",
+      "source_key": "uls-complete:l_paging.zip:3ab7ad77e0dbec5c82b13491e963923673a14e45ef9fa6ca0d77a82370e7fbc5",
+      "url": "https://data.fcc.gov/download/pub/uls/complete/l_paging.zip"
+    },
+    {
+      "authority": "Federal Communications Commission, Universal Licensing System",
+      "byte_size": 43732028,
+      "etag": "\"29b4c3c-659b7281c1ff8\"",
+      "last_modified": "Sun, 23 Aug 2026 13:50:47 GMT",
+      "notes": "All FCC fields are retained in raw_* tables; common fields are also normalized and indexed.",
+      "published_at": "Sun, 23 Aug 2026 13:50:47 GMT",
+      "raw_parser_version": 2,
+      "record_counts": {
+        "entities": 402018,
+        "licenses": 402018,
+        "raw.CO": 375,
+        "raw.EN": 402018,
+        "raw.HD": 402018,
+        "raw.HS": 1192799,
+        "raw.LA": 613,
+        "raw.SE": 368,
+        "raw.SH": 402017,
+        "raw.SR": 131557,
+        "raw.SV": 679
+      },
+      "retrieved_at": "2026-08-29T01:57:45+00:00",
+      "schema_drift": {
+        "CO": {
+          "documented_fields": 8,
+          "maximum_observed_fields": 8,
+          "minimum_observed_fields": 6,
+          "rows_with_missing_trailing_fields": 2
+        },
+        "EN": {
+          "documented_fields": 30,
+          "maximum_observed_fields": 32,
+          "minimum_observed_fields": 30,
+          "rows_with_extra_fields": 1
+        },
+        "HD": {
+          "documented_fields": 59,
+          "maximum_observed_fields": 60,
+          "minimum_observed_fields": 59,
+          "rows_with_extra_fields": 1
+        }
+      },
+      "sha256": "b7b51512d6acd9ce4200780b9bdcb753c465f99ba623a15407040f4f3bc9d2fc",
+      "source_key": "uls-complete:l_ship.zip:b7b51512d6acd9ce4200780b9bdcb753c465f99ba623a15407040f4f3bc9d2fc",
+      "url": "https://data.fcc.gov/download/pub/uls/complete/l_ship.zip"
+    }
+  ]
+}

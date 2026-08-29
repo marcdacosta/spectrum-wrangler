@@ -1,0 +1,18 @@
+__pycache__/
+*.py[cod]
+.DS_Store
+.pytest_cache/
+.coverage
+.venv/
+dist/
+build/
+*.egg-info/
+
+# Reproducible local artifacts; provenance manifests are committed instead.
+data/*.sqlite3
+data/*.sqlite3-*
+data/cache/
+data/downloads/
+
+# Local cache from an abandoned research prototype; not part of the project.
+research/

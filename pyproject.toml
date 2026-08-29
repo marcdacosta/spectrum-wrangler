@@ -1,0 +1,23 @@
+[build-system]
+requires = ["setuptools==80.9.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "spectrum-wrangler"
+version = "0.3.0"
+description = "A provenance-tracked local database and query interface for FCC spectrum licenses"
+readme = "README.md"
+requires-python = ">=3.11"
+authors = [{ name = "Marc DaCosta" }]
+dependencies = []
+
+[project.scripts]
+spectrum-wrangler = "spectrum_wrangler.cli:main"
+spectrum-wrangler-mcp = "spectrum_wrangler.mcp_server:main"
+spectrum-wrangler-agent = "spectrum_wrangler.agent:main"
+
+[tool.setuptools.packages.find]
+include = ["spectrum_wrangler*"]
+
+[tool.setuptools.package-data]
+spectrum_wrangler = ["uls_schema.json"]
