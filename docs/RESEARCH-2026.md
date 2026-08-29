@@ -3,7 +3,12 @@
 Date: August 28, 2026
 Audience: Spectrum Wrangler maintainers and data/agent developers
 
-This document records the research that informed the FCC data migration.
+This document records the research that informed the FCC data migration. It is
+an archived record of what was verified on that date, not a maintained status
+page: directory listings, archive counts, and observed drift are stated as they
+were found in August 2026. For what is loaded on your machine right now, run
+`spectrum-wrangler status`. For what the migration means if you used the 2017
+loader, see [migration notes](MIGRATION.md).
 
 ## Executive answer
 

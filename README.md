@@ -8,13 +8,14 @@ In the United States the Federal Communication Commission is responsible for reg
 
 The original version of this project used the [License View](http://reboot.fcc.gov/license-view/) database, which harmonized the schema of the various parts of the [Universal Licensing System](http://wireless.fcc.gov/uls/index.htm?job=transaction&page=weekly) (ULS) into one flat CSV. The FCC no longer maintains License View. Spectrum Wrangler now reads ULS directly, which is the same data with more detail and no denormalization: a license header, its licensee, its locations, its antennas, its frequency assignments, and its emissions all arrive as separate related records.
 
-The current snapshot holds 5.2M licenses, 2.8M of them active, across 129 radio services — 6.6M licensee records, 3.3M transmitter locations (2.4M with usable coordinates), and 11.4M frequency assignments.
+The FCC snapshot published August 23, 2026 holds 5.2M licenses, 2.8M of them active, across 129 radio services — 6.6M licensee records, 3.3M transmitter locations (2.4M with usable coordinates), and 11.4M frequency assignments. Your own numbers will differ; `status` reports what you actually loaded.
 
 # How to use
 * Install Python 3.11 or newer. There is nothing else to install.
 * Run `python3 -m spectrum_wrangler refresh` to download and index every current weekly archive.
 * Run `python3 -m spectrum_wrangler refresh --archive paging` first if you want a small database to try.
 * Query it with `python3 -m spectrum_wrangler <command>`, or point an AI agent at it (see below).
+* Read [the querying guide](docs/QUERYING.md) for how the records join and what to watch out for.
 
 The complete download is about 1.2 GB compressed and produces a database of roughly 23 GB once every source field is retained and indexed. Downloads are cached and content-hashed, so re-running `refresh` re-imports only what actually changed. Use `--normalized-only` for a much smaller database when you do not need every raw FCC field.
 
@@ -29,7 +30,7 @@ Generated archives and databases stay out of Git. [data/source-manifest.json](da
 * No third-party runtime packages — SQLite, FTS5, and RTree ship with Python. PostGIS and Docker are no longer needed.
 
 # Examples
-Example raw data extract from the original License View publication can be found in `sample-fcc.csv`.
+Example raw data extract from the original License View publication can be found in `sample-fcc.csv`. [The querying guide](docs/QUERYING.md) has worked investigations and the join semantics behind these.
 
 ## Query to check what is loaded and how current it is
 
@@ -116,4 +117,4 @@ FCC records are public but contain contact information. The normalized tables us
     python3 -m unittest discover -s tests -v
     python3 -m compileall -q spectrum_wrangler tests
 
-The only build dependency is the pinned `setuptools==80.9.0`. The application itself has no third-party runtime dependencies.
+The only build dependency is the pinned `setuptools==80.9.0`. The application itself has no third-party runtime dependencies, and [the dependency policy](docs/DEPENDENCIES.md) explains what it takes to add one.

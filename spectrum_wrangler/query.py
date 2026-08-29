@@ -188,7 +188,7 @@ def database_status(connection: sqlite3.Connection) -> dict[str, Any]:
     """Return provenance and inexpensive table counts for agent orientation."""
     path_value = connection.execute("PRAGMA database_list").fetchone()[2]
     source_rows = row_dicts(connection.execute(
-        "SELECT source_key,url,retrieved_at,last_modified,sha256,byte_size,raw_parser_version,record_counts_json,schema_drift_json "
+        "SELECT source_key,authority,url,retrieved_at,last_modified,sha256,byte_size,raw_parser_version,record_counts_json,schema_drift_json "
         "FROM sources WHERE active=1 ORDER BY retrieved_at DESC"
     ))
     for row in source_rows:

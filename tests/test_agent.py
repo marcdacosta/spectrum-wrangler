@@ -7,8 +7,9 @@ import tempfile
 import unittest
 from pathlib import Path
 
+from fixtures import build_fixture
 from spectrum_wrangler.agent import EXIT_EMPTY, EXIT_ERROR, EXIT_OK, main
-from spectrum_wrangler.db import connect, initialize
+from spectrum_wrangler.db import connect
 from spectrum_wrangler.query import (
     band_survey,
     expirations,
@@ -18,58 +19,6 @@ from spectrum_wrangler.query import (
     search_licenses,
     text_search,
 )
-
-
-def build_fixture(path: Path) -> None:
-    """One license with a full set of related records, plus two contrasts."""
-    with connect(path) as connection:
-        initialize(connection)
-        connection.execute(
-            "INSERT INTO sources(source_key,authority,url,retrieved_at,sha256,byte_size) "
-            "VALUES(?,?,?,?,?,?)",
-            ("test", "FCC ULS", "https://example.test", "2026-01-01T00:00:00Z", "0" * 64, 0),
-        )
-        rows = [
-            # usi, callsign, status, service, grant, expired, last_action
-            (1, "TEST1", "A", "PW", "01/02/2020", "09/15/2026", "03/04/2026"),
-            (2, "TEST2", "A", "HA", "05/06/2019", "01/10/2031", "12/31/2025"),
-            (3, "TEST3", "E", "PW", "07/08/2015", "02/02/2020", "02/02/2020"),
-        ]
-        for usi, sign, status, service, grant, expired, action in rows:
-            connection.execute(
-                "INSERT INTO licenses(unique_system_id,source_id,source_archive,callsign,"
-                "license_status,radio_service_code,grant_date,expired_date,last_action_date) "
-                "VALUES(?,1,'test.zip',?,?,?,?,?,?)",
-                (usi, sign, status, service, grant, expired, action),
-            )
-            connection.execute(
-                "INSERT INTO entities(unique_system_id,callsign,entity_type,display_name,state) "
-                "VALUES(?,?,'L',?,?)",
-                (usi, sign, f"CITY OF {sign}", "NY"),
-            )
-            connection.execute(
-                "INSERT INTO license_fts(callsign,display_name,radio_service_code,state,"
-                "unique_system_id) VALUES(?,?,?,?,?)",
-                (sign, f"CITY OF {sign}", service, "NY", usi),
-            )
-        connection.execute(
-            "INSERT INTO locations(unique_system_id,callsign,location_number,county,state,"
-            "latitude,longitude) VALUES(1,'TEST1',1,'KINGS','NY',40.7,-74.0)"
-        )
-        connection.execute(
-            "INSERT INTO antennas(unique_system_id,callsign,location_number,antenna_number,"
-            "azimuth_deg) VALUES(1,'TEST1',1,1,180.0)"
-        )
-        connection.execute(
-            "INSERT INTO frequencies(unique_system_id,callsign,location_number,antenna_number,"
-            "frequency_number,frequency_assigned_mhz,power_output_w) "
-            "VALUES(1,'TEST1',1,1,1,462.5,50.0)"
-        )
-        connection.execute(
-            "INSERT INTO emissions(unique_system_id,callsign,frequency_assigned_mhz,emission_code) "
-            "VALUES(1,'TEST1',462.5,'11K0F3E')"
-        )
-        connection.commit()
 
 
 class QueryTests(unittest.TestCase):

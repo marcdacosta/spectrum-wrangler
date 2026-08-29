@@ -1,6 +1,11 @@
 # Migration from FCC License View
 
-The 2017 loader downloaded one `fcc_lic_vw.csv`, created a hand-written Postgres table, converted degree/minute/second coordinates in PL/pgSQL, and required PostGIS. That path cannot be repaired by changing its URL: in a July 1, 2025 response, the FCC said the requested License View database “is no longer maintained.”
+This is for people who ran the 2017 loader. It covers what changed and what to
+expect; the evidence behind the decision — the FCC's response, the ULS
+publication format, the LMS boundary — is recorded once in
+[the 2026 research notes](RESEARCH-2026.md) rather than repeated here.
+
+The 2017 loader downloaded one `fcc_lic_vw.csv`, created a hand-written Postgres table, converted degree/minute/second coordinates in PL/pgSQL, and required PostGIS. That path cannot be repaired by changing its URL: the FCC has confirmed License View is no longer maintained.
 
 Version 0.3 therefore changes both the publication and storage model.
 
@@ -25,15 +30,17 @@ Coordinates are converted to decimal WGS84 values during normalization and the o
 
 ## Raw fidelity and schema drift
 
-The importer keeps every field described by the FCC Public Access Database Definitions dated April 17, 2025. The checked-in `uls_schema.json` defines all 89 record layouts. Raw values remain text so identifiers, leading zeroes, source date formats, and precision are not altered.
+The importer keeps every field described by the FCC's published record definitions; the checked-in `uls_schema.json` defines all 89 layouts. Raw values remain text so identifiers, leading zeroes, source date formats, and precision are not altered.
 
-An FCC record with fewer fields is padded with nulls. Newly added trailing fields are serialized in `extra_fields_json`, making publication drift visible and recoverable instead of shifting columns or dropping data. Completely new record types go to `raw_unknown` until their official definitions are reviewed.
+An FCC record with fewer fields is padded with nulls. Newly added trailing fields are serialized in `extra_fields_json`, making publication drift visible and recoverable instead of shifting columns or dropping data. Completely new record types go to `raw_unknown` until their official definitions are reviewed. [The research notes](RESEARCH-2026.md) give a worked example of drift already observed in the published archives.
 
 Some FCC free-text fields span unescaped physical lines. The logical-record parser recognizes the member's two-character record prefix, joins continuation text back into the preceding field with newlines, and skips physical blank separators. `raw_parser_version` in source provenance prevents an older line-oriented import from being mistaken for a current verified snapshot.
 
 ## Broadcast limitation
 
-License View combined more than ULS. Its sample in this repository includes CDBS broadcast stations; the modern replacement for those station records is LMS, not ULS. ULS still contains broadcast auxiliary services (`l_LMbcast.zip`). Version 0.3 deliberately labels this boundary and does not present ULS as a complete replacement for modern AM/FM/TV station licensing.
+License View combined more than ULS. Its sample in this repository includes CDBS broadcast stations; the modern replacement for those station records is LMS, not ULS. ULS still contains broadcast auxiliary services (`l_LMbcast.zip`).
+
+If you previously queried this database for full-power AM/FM/TV stations, that is the one query family version 0.3 cannot answer. It is labelled rather than silently approximated, and LMS is not mixed in.
 
 ## Legacy files
 
