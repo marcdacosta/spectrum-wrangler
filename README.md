@@ -21,13 +21,35 @@ The complete download is about 1.2 GB compressed and produces a database of roug
 
 Generated archives and databases stay out of Git. [data/source-manifest.json](data/source-manifest.json) is committed instead, and records each archive's official URL, FCC publication time, retrieval time, ETag, SHA-256, byte size, record counts, and any observed schema drift.
 
-# How to use (alternate)
-* A project to Dockerize `spectrum-wrangler` can be found [here](https://github.com/brannondorsey/spectrum-wrangler-docker). It targets the original PostgreSQL/License View workflow and is kept as a historical reference, not the current path.
+# Do I need Docker?
+No. A project to Dockerize `spectrum-wrangler` can be found [here](https://github.com/brannondorsey/spectrum-wrangler-docker), and it made sense when this tool required a PostgreSQL server with the PostGIS extension installed and configured. That was the hard part, and a container solved it.
+
+Version 0.3 has no services and no dependencies, so a container would add a step rather than remove one — and the expensive artifact is the 23 GB database, which has to live on your disk either way. The Docker wrapper targets the retired PostgreSQL/License View workflow and is kept as a historical reference, not the current path.
 
 # Requirements
-* Python 3.11 or newer
-* About 25 GB of free space for a full load
-* No third-party runtime packages — SQLite, FTS5, and RTree ship with Python. PostGIS and Docker are no longer needed.
+* **Python 3.11 or newer, and nothing else.** SQLite, FTS5, and RTree ship with Python. PostgreSQL, PostGIS, and Docker are no longer needed.
+* **Disk: about 25 GB** for a full load — a 23 GB database plus a 1.25 GB download cache. `--normalized-only` cuts the database to roughly a third of that.
+* **Memory: under 600 MB.** The importer streams, so memory tracks the widest record rather than the size of the archive. Measured peaks: 77 MB for the smallest archive, 537 MB for the largest (35.4M records). An 8 GB laptop is comfortable.
+* **Time: roughly 15 minutes** of import for the full set on a modern laptop once downloaded, plus the download itself. Importing runs at about 130,000 records per second.
+
+Nothing needs installing. Clone the repository and run it in place:
+
+    git clone https://github.com/marcdacosta/spectrum-wrangler.git
+    cd spectrum-wrangler
+    python3 -m spectrum_wrangler sources
+
+`pip install -e .` additionally puts `spectrum-wrangler`, `spectrum-wrangler-agent`, and `spectrum-wrangler-mcp` on your PATH. Every example here uses the `python3 -m` form so it works either way.
+
+## Start small
+One archive is enough to learn the shape of the data, and the smallest is a four-second import:
+
+| Archive | Download | Records | Database |
+|---|---|---|---|
+| `--archive paging` | 6.5 MB | 750K | 142 MB |
+| `--archive amateur` | 198 MB | 10.5M | 2.3 GB (710 MB with `--normalized-only`) |
+| everything | 1.25 GB | 105.9M | 23 GB |
+
+Run `python3 -m spectrum_wrangler sources` to see the full list of 14 archives.
 
 # Examples
 Example raw data extract from the original License View publication can be found in `sample-fcc.csv`. [The querying guide](docs/QUERYING.md) has worked investigations and the join semantics behind these.
