@@ -5,8 +5,8 @@ records actually join, and the four things about FCC data that will produce a
 confidently wrong answer if you do not know them.
 
 Everything here runs against the database `spectrum-wrangler refresh` builds.
-Examples use the `sql` command; the same queries work through the agent CLI and
-the MCP `query_spectrum_sql` tool.
+Examples use the `sql` command; the structured commands wrap the same query
+layer, so they agree with it.
 
 ## Start with what you have
 
@@ -32,8 +32,8 @@ snapshots on that date*, so read it first and cite it. An empty result means
 | Free-text search | `license_fts` | FTS5 over call sign, licensee, service, state |
 | Anything else | `raw_*` | Every published field, 89 tables, verbatim |
 
-The structured CLI and MCP commands wrap the common shapes of these. Reach for
-SQL when your question is not one of them.
+The structured commands wrap the common shapes of these. Reach for SQL when
+your question is not one of them.
 
 ## How records join
 
@@ -160,6 +160,32 @@ auditing against the source. `uls_raw_catalog` maps record codes to their
 column lists, and undocumented trailing fields are preserved in
 `extra_fields_json` rather than dropped.
 
-Raw contact, address, ZIP, and FRN columns are denied to SQL unless the local
-operator passes `--allow-sensitive`. Licensee names in `entities.display_name`
-are never gated — knowing who holds a licence is the point of the dataset.
+Every published field is queryable, including contact columns — it is all FCC
+public record, and the database is a local file you could open with `sqlite3`
+regardless. Writes are refused by the SQLite engine itself.
+
+### Organization identity has no clean answer
+
+There is no reliable key for "this organization", and it is worth knowing
+exactly how each option fails before you publish a count.
+
+`display_name` is free text, typed differently on every filing. SQLite's `LIKE`
+is case-insensitive, so it is better than it looks — searching the NYPD's full
+name returns 614 records against 625 for a looser stem, missing about 1.8%.
+What it misses is abbreviations and typos (`NEW YORK CITY POLICE DEPT.`,
+`Departmment`), and what it wrongly includes is unrelated bodies that share
+words (`NEW YORK CITY POLICE PENSION FUND`).
+
+`entities.frn`, the FCC Registration Number, is exact where present. It covers
+**79.8% of licensee records** — contact (`CL`) and owner (`O`) records never
+carry one — and it is issued per filing office rather than per organization, so
+one body holds several. The NYPD's licensee records carry **7 different FRNs**.
+An FRN-only search is precise, incomplete, and fragmented.
+
+So `organization` reports the spread rather than collapsing it:
+
+    python3 -m spectrum_wrangler organization --name "NEW YORK CITY POLICE"
+
+It returns the licence count, every name variant, every FRN those records
+carry, how many have none, and caveats naming which way the number is likely
+wrong. Treat the total as an estimate with a stated method, not a fact.

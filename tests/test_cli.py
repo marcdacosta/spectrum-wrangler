@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import argparse
 import contextlib
 import io
 import json
@@ -30,28 +31,48 @@ class CliHarness(unittest.TestCase):
                     code = int(exit_code.code or 0)
         return code, out.getvalue(), err.getvalue()
 
-    def json_out(self, *argv: str, stdin: str = "") -> object:
+    def envelope(self, *argv: str, stdin: str = "") -> dict:
+        """Run a command and return the whole JSON envelope."""
         code, out, err = self.run_cli(*argv, stdin=stdin)
-        self.assertEqual(code, 0, f"exited {code}: {err}")
+        self.assertIn(code, (0, 1), f"exited {code}: {err}")
         return json.loads(out)
+
+    def json_out(self, *argv: str, stdin: str = "") -> object:
+        """Run a command and return just its payload."""
+        return self.envelope(*argv, stdin=stdin)["data"]
 
 
 class ParserTests(unittest.TestCase):
     def test_every_subcommand_is_wired_to_a_handler(self) -> None:
         parser = cli.parser()
         subparsers = next(
-            action for action in parser._actions if hasattr(action, "choices") and action.choices
+            action for action in parser._actions
+            if isinstance(action, argparse._SubParsersAction)
         )
         expected = {
-            "init", "sources", "refresh", "callsign", "frequency", "nearby",
-            "search", "status", "schema", "sql", "mcp",
+            "init", "sources", "refresh", "capabilities", "callsign", "frequency",
+            "nearby", "search", "organization", "status", "schema", "sql",
+            "license", "text", "band", "geography", "services", "expirations",
         }
         self.assertEqual(set(subparsers.choices), expected)
         for name in expected:
-            self.assertTrue(
-                callable(subparsers.choices[name].get_default("func")),
-                f"{name} has no handler",
-            )
+            sub = subparsers.choices[name]
+            handler = sub.get_default("func") or sub.get_default("operation")
+            self.assertIsNotNone(handler, f"{name} has no handler")
+
+    def test_every_operation_is_declared_once(self) -> None:
+        """The parser, capabilities, and help all come from OPERATIONS."""
+        declared = {operation.name for operation in cli.OPERATIONS}
+        manifest = {entry["name"] for entry in cli.capabilities_manifest()["commands"]}
+        self.assertEqual(declared, manifest)
+
+    def test_every_parameter_documents_itself(self) -> None:
+        for operation in cli.OPERATIONS:
+            for parameter in operation.params:
+                self.assertTrue(
+                    parameter.help,
+                    f"{operation.name}.{parameter.name} has no help text",
+                )
 
     def test_missing_subcommand_is_a_usage_error(self) -> None:
         with contextlib.redirect_stderr(io.StringIO()):
@@ -69,10 +90,11 @@ class ReadCommandTests(CliHarness):
     def test_callsign_is_case_insensitive(self) -> None:
         rows = self.json_out("callsign", "test1")
         self.assertEqual(rows[0]["callsign"], "TEST1")
-        self.assertEqual(rows[0]["display_name"], "CITY OF TEST1")
+        self.assertEqual(rows[0]["display_name"], "CITY OF TEST")
 
     def test_callsign_with_no_match_prints_an_empty_list(self) -> None:
         self.assertEqual(self.json_out("callsign", "ZZZZZ"), [])
+        self.assertEqual(self.run_cli("callsign", "ZZZZZ")[0], 1)
 
     def test_search_filters_combine(self) -> None:
         self.assertEqual(len(self.json_out("search", "--state", "NY")), 3)
@@ -81,7 +103,7 @@ class ReadCommandTests(CliHarness):
             [row["callsign"] for row in self.json_out("search", "--service", "PW", "--status", "A")],
             ["TEST1"],
         )
-        self.assertEqual(len(self.json_out("search", "--name", "CITY OF TEST2")), 1)
+        self.assertEqual(len(self.json_out("search", "--name", "SOMEONE ELSE")), 1)
 
     def test_search_limit_is_bounded(self) -> None:
         self.assertEqual(len(self.json_out("search", "--limit", "1")), 1)
@@ -92,7 +114,7 @@ class ReadCommandTests(CliHarness):
     def test_frequency_tolerance_window(self) -> None:
         self.assertEqual(len(self.json_out("frequency", "462.5")), 1)
         self.assertEqual(self.json_out("frequency", "462.5")[0]["callsign"], "TEST1")
-        self.assertEqual(self.json_out("frequency", "470")[0:], [])
+        self.assertEqual(self.json_out("frequency", "470"), [])
 
     def test_frequency_rejects_negative_center(self) -> None:
         code, _, err = self.run_cli("frequency", "-5")
@@ -160,19 +182,15 @@ class SqlCommandTests(CliHarness):
         self.run_cli("sql", "DELETE FROM licenses")
         self.assertEqual(self.json_out("status")["normalized_counts"]["licenses"], 3)
 
-    def test_raw_contact_fields_are_denied_by_default(self) -> None:
-        code, _, err = self.run_cli("sql", "SELECT phone FROM raw_en")
-        self.assertEqual(code, 2)
-        self.assertIn("prohibited", err.lower())
-
-    def test_allow_sensitive_opts_a_local_operator_in(self) -> None:
-        payload = self.json_out("sql", "SELECT phone FROM raw_en", "--allow-sensitive")
+    def test_published_contact_fields_are_queryable(self) -> None:
+        """FCC record is public and the database is a local file; there is no gate."""
+        payload = self.json_out("sql", "SELECT phone, email, frn FROM raw_en")
         self.assertEqual(payload["rows"][0]["phone"], "2125551212")
+        self.assertEqual(payload["rows"][0]["frn"], "0001234567")
 
-    def test_normalized_entity_name_is_never_gated(self) -> None:
-        """The licensee's name is the point of the dataset, not contact data."""
+    def test_normalized_entity_name_is_queryable(self) -> None:
         payload = self.json_out("sql", "SELECT display_name FROM entities LIMIT 1")
-        self.assertEqual(payload["rows"][0]["display_name"], "CITY OF TEST1")
+        self.assertEqual(payload["rows"][0]["display_name"], "CITY OF TEST")
 
 
 class WriteCommandTests(unittest.TestCase):
@@ -215,29 +233,33 @@ class WriteCommandTests(unittest.TestCase):
                 cli.main(["refresh", "--archive", "not-an-archive"])
         self.assertEqual(raised.exception.code, 2)
 
-    def test_mcp_subcommand_serves_the_named_database(self) -> None:
-        with tempfile.TemporaryDirectory() as directory:
-            path = Path(directory) / "test.sqlite3"
-            build_fixture(path)
-            with mock.patch("spectrum_wrangler.mcp_server.serve") as serve:
-                with self.assertRaises(SystemExit):
-                    cli.main(["--database", str(path), "mcp", "--allow-sensitive"])
-            serve.assert_called_once()
-            self.assertEqual(serve.call_args.kwargs["allow_sensitive"], True)
-            self.assertEqual(serve.call_args.args[0], path)
-
-
 class OutputContractTests(CliHarness):
-    def test_results_are_json_on_stdout_and_errors_are_plain_on_stderr(self) -> None:
+    def test_results_are_json_on_stdout_and_errors_are_json_on_stderr(self) -> None:
         code, out, err = self.run_cli("callsign", "TEST1")
         self.assertEqual(code, 0)
         self.assertEqual(err, "")
-        json.loads(out)
+        self.assertTrue(json.loads(out)["ok"])
 
         code, out, err = self.run_cli("schema", "nope")
         self.assertEqual(code, 2)
         self.assertEqual(out, "")
+        self.assertFalse(json.loads(err)["ok"])
+
+    def test_human_errors_are_plain_text(self) -> None:
+        code, _, err = self.run_cli("--format", "table", "schema", "nope")
+        self.assertEqual(code, 2)
         self.assertTrue(err.startswith("error: "))
+
+    def test_table_format_renders_a_header(self) -> None:
+        code, out, _ = self.run_cli("--format", "table", "search", "--state", "NY")
+        self.assertEqual(code, 0)
+        self.assertIn("CALLSIGN", out)
+        self.assertIn("---", out)
+
+    def test_table_format_says_so_when_nothing_matched(self) -> None:
+        code, out, _ = self.run_cli("--format", "table", "callsign", "ZZZZZ")
+        self.assertEqual(code, 1)
+        self.assertIn("no matching records", out)
 
     def test_json_is_stable_for_diffing(self) -> None:
         first = self.run_cli("search", "--state", "NY")[1]

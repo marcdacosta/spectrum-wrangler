@@ -13,7 +13,6 @@ dependencies = []
 
 [project.scripts]
 spectrum-wrangler = "spectrum_wrangler.cli:main"
-spectrum-wrangler-mcp = "spectrum_wrangler.mcp_server:main"
 spectrum-wrangler-agent = "spectrum_wrangler.agent:main"
 
 [tool.setuptools.packages.find]

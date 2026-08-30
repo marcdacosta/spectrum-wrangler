@@ -1,23 +1,42 @@
-"""Dependency-free command line surface."""
+"""The command line surface, for people and for agents.
+
+Every operation is declared once in OPERATIONS. The argparse subcommands, the
+machine-readable `capabilities` manifest, and the help text are all generated
+from that list, so an operation cannot appear in one surface and go missing
+from another.
+
+Output adapts to the consumer: a table when stdout is a terminal, JSON when it
+is piped. `--format` always wins over that guess.
+"""
 
 from __future__ import annotations
 
 import argparse
+import csv
 import json
 import sqlite3
 import sys
+from dataclasses import dataclass
 from pathlib import Path
+from typing import Any, Callable
 
 from . import __version__
 from .db import connect, initialize
 from .query import (
+    band_survey,
     callsign,
     database_status,
     describe_schema,
     execute_readonly_sql,
+    expirations,
     frequency,
+    geography,
+    license_record,
     nearby,
+    organization,
+    radio_services,
     search_licenses,
+    text_search,
 )
 from .uls import (
     LICENSE_ARCHIVES,
@@ -35,27 +54,307 @@ DEFAULT_DB = Path("data/spectrum-wrangler.sqlite3")
 DEFAULT_CACHE = Path("data/cache/uls")
 DEFAULT_MANIFEST = Path("data/source-manifest.json")
 
+EXIT_OK = 0
+EXIT_EMPTY = 1
+EXIT_ERROR = 2
 
-def _print_json(value: object) -> None:
-    print(json.dumps(value, indent=2, sort_keys=True, ensure_ascii=False))
+GUIDANCE = (
+    "Run `status` first to learn which FCC snapshots are loaded and how current "
+    "they are, then cite those dates. Prefer a structured command over `sql`. "
+    "An empty result means 'not in the loaded snapshots', never 'no such FCC "
+    "authorization exists'. Full-power AM/FM/TV licensing is in the FCC's "
+    "separate LMS system and is not in this database."
+)
 
+
+@dataclass(frozen=True)
+class Param:
+    name: str
+    type: Callable[[str], Any] = str
+    positional: bool = False
+    optional_positional: bool = False
+    default: Any = None
+    choices: tuple[str, ...] | None = None
+    help: str = ""
+    exclusive: str | None = None
+
+
+@dataclass(frozen=True)
+class Operation:
+    name: str
+    summary: str
+    run: Callable[[Any, argparse.Namespace], Any]
+    params: tuple[Param, ...] = ()
+    exclusive_required: tuple[str, ...] = ()
+    examples: tuple[str, ...] = ()
+    rows_key: str | None = None
+    tabular: bool = True
+
+
+LIMIT = Param("limit", int, default=100, help="maximum rows, 1-1000")
+
+
+OPERATIONS: tuple[Operation, ...] = (
+    Operation(
+        "status", "Show which FCC snapshots are loaded, when published, and row counts.",
+        lambda c, a: database_status(c),
+        tabular=False,
+        examples=("status",),
+    ),
+    Operation(
+        "schema", "List queryable tables, or describe one table's columns.",
+        lambda c, a: describe_schema(c, a.table),
+        params=(Param("table", optional_positional=True, help="exact table name"),),
+        tabular=False,
+        examples=("schema", "schema raw_fr"),
+    ),
+    Operation(
+        "callsign", "Look up an exact call sign.",
+        lambda c, a: callsign(c, a.callsign),
+        params=(Param("callsign", positional=True, help="e.g. W1AW"),),
+        examples=("callsign W1AW",),
+    ),
+    Operation(
+        "license",
+        "Assemble one licence with its licensee, locations, antennas, frequencies, "
+        "and emissions attached.",
+        lambda c, a: license_record(c, unique_system_id=a.id, callsign_value=a.callsign),
+        params=(
+            Param("callsign", help="e.g. W1AW", exclusive="who"),
+            Param("id", int, help="unique_system_identifier", exclusive="who"),
+        ),
+        exclusive_required=("who",),
+        tabular=False,
+        examples=("license --callsign W1AW",),
+    ),
+    Operation(
+        "search", "Filter licences by call sign, licensee, state, service, or status.",
+        lambda c, a: search_licenses(
+            c, callsign_text=a.callsign, entity_name=a.name, state=a.state,
+            service=a.service, status=a.status, limit=a.limit,
+        ),
+        params=(
+            Param("callsign", help="partial call sign"),
+            Param("name", help="licensee name, matched loosely"),
+            Param("state", help="two-letter state"),
+            Param("service", help="radio service code, e.g. HA"),
+            Param("status", help="licence status, e.g. A for active"),
+            LIMIT,
+        ),
+        examples=('search --name "CITY OF NEW YORK" --state NY --status A',),
+    ),
+    Operation(
+        "text", "Full-text search over call sign, licensee, service, and state.",
+        lambda c, a: text_search(c, a.query, a.limit),
+        params=(
+            Param("query", positional=True, help="FTS5 query, e.g. 'fire AND department'"),
+            LIMIT,
+        ),
+        examples=("text 'fire AND department'",),
+    ),
+    Operation(
+        "organization",
+        "Report what one licensee holds, and how confidently it can be identified.",
+        lambda c, a: organization(c, frn=a.frn, name=a.name, limit=a.limit),
+        params=(
+            Param("frn", help="FCC Registration Number", exclusive="who"),
+            Param("name", help="licensee name", exclusive="who"),
+            LIMIT,
+        ),
+        exclusive_required=("who",),
+        tabular=False,
+        examples=('organization --name "NEW YORK CITY POLICE"',),
+    ),
+    Operation(
+        "frequency", "Find assignments near a centre frequency.",
+        lambda c, a: frequency(c, a.center_mhz, a.tolerance_khz, a.limit),
+        params=(
+            Param("center_mhz", float, positional=True, help="MHz"),
+            Param("tolerance_khz", float, default=12.5, help="half-width in kHz"),
+            LIMIT,
+        ),
+        examples=("frequency 931 --tolerance-khz 500",),
+    ),
+    Operation(
+        "band", "Summarize who holds assignments across a frequency range.",
+        lambda c, a: band_survey(
+            c, a.low_mhz, a.high_mhz, group_by=a.group_by, state=a.state, limit=a.limit,
+        ),
+        params=(
+            Param("low_mhz", float, positional=True, help="MHz"),
+            Param("high_mhz", float, positional=True, help="MHz"),
+            Param("group_by", default="service",
+                  choices=("service", "state", "licensee", "class_station"),
+                  help="dimension to group by"),
+            Param("state", help="restrict to one state"),
+            LIMIT,
+        ),
+        rows_key="groups",
+        examples=("band 462 468 --group-by licensee",),
+    ),
+    Operation(
+        "nearby", "Find licensed transmitter sites near a coordinate.",
+        lambda c, a: nearby(c, a.latitude, a.longitude, a.radius_km, a.limit),
+        params=(
+            Param("latitude", float, positional=True, help="decimal degrees, WGS84"),
+            Param("longitude", float, positional=True, help="decimal degrees, WGS84"),
+            Param("radius_km", float, default=10.0, help="great-circle radius in km"),
+            LIMIT,
+        ),
+        examples=(
+            "nearby 40.7128 -74.0060 --radius-km 5",
+            "nearby 40.748444 -73.985694 --radius-km 0.1    # a single building",
+        ),
+    ),
+    Operation(
+        "geography", "Count licensed sites by state or county.",
+        lambda c, a: geography(c, level=a.level, service=a.service, state=a.state,
+                               limit=a.limit),
+        params=(
+            Param("level", default="state", choices=("state", "county"),
+                  help="aggregation level"),
+            Param("service", help="radio service code"),
+            Param("state", help="restrict to one state"),
+            LIMIT,
+        ),
+        rows_key="areas",
+        examples=("geography --level county --state NY",),
+    ),
+    Operation(
+        "services", "List the radio service codes present, with licence counts.",
+        lambda c, a: radio_services(c, a.limit),
+        params=(Param("limit", int, default=200, help="maximum rows, 1-1000"),),
+        rows_key="services",
+        examples=("services",),
+    ),
+    Operation(
+        "expirations", "List licences expiring inside a date window.",
+        lambda c, a: expirations(
+            c, start=a.start, end=a.end, service=a.service,
+            state=a.state, status=a.status, limit=a.limit,
+        ),
+        params=(
+            Param("start", help="YYYY-MM-DD or MM/DD/YYYY"),
+            Param("end", help="YYYY-MM-DD or MM/DD/YYYY"),
+            Param("service", help="radio service code"),
+            Param("state", help="two-letter state"),
+            Param("status", default="A", help="licence status; default A for active"),
+            LIMIT,
+        ),
+        examples=("expirations --start 2026-10-01 --end 2026-12-31 --state NY",),
+    ),
+    Operation(
+        "sql", "Run one bounded read-only SELECT, WITH, or EXPLAIN statement.",
+        lambda c, a: execute_readonly_sql(
+            c,
+            a.sql if a.sql is not None else sys.stdin.read(),
+            limit=a.limit, timeout_ms=a.timeout_ms,
+        ),
+        params=(
+            Param("sql", optional_positional=True,
+                  help="query text; reads stdin when omitted"),
+            Param("limit", int, default=200, help="maximum rows, 1-1000"),
+            Param("timeout_ms", int, default=5000, help="statement timeout"),
+        ),
+        rows_key="rows",
+        examples=('sql "SELECT radio_service_code, count(*) FROM licenses GROUP BY 1"',),
+    ),
+)
+
+
+# ---------------------------------------------------------------- output ----
+
+def _rows_of(payload: Any, rows_key: str | None) -> list[dict[str, Any]] | None:
+    if isinstance(payload, list):
+        return payload
+    if isinstance(payload, dict) and rows_key:
+        value = payload.get(rows_key)
+        if isinstance(value, list):
+            return value
+    return None
+
+
+def _cell(value: Any) -> str:
+    if value is None:
+        return ""
+    if isinstance(value, float):
+        return f"{value:.6g}"
+    return str(value)
+
+
+def _table(rows: list[dict[str, Any]]) -> None:
+    if not rows:
+        print("(no matching records)")
+        return
+    columns: list[str] = []
+    for row in rows:
+        for key in row:
+            if key not in columns:
+                columns.append(key)
+    widths = {
+        column: min(max(len(column), *(len(_cell(row.get(column))) for row in rows)), 40)
+        for column in columns
+    }
+    print("  ".join(c.upper()[: widths[c]].ljust(widths[c]) for c in columns))
+    print("  ".join("-" * widths[c] for c in columns))
+    for row in rows:
+        print("  ".join(_cell(row.get(c))[: widths[c]].ljust(widths[c]) for c in columns))
+
+
+def _write_json(value: Any) -> None:
+    json.dump(value, sys.stdout, indent=2, sort_keys=True, ensure_ascii=False)
+    sys.stdout.write("\n")
+
+
+def emit(command: str, payload: Any, rows_key: str | None, output_format: str) -> int:
+    rows = _rows_of(payload, rows_key)
+    count = len(rows) if rows is not None else None
+
+    if output_format == "table":
+        _table(rows) if rows is not None else _write_json(payload)
+    elif output_format == "json":
+        envelope: dict[str, Any] = {"ok": True, "command": command, "data": payload}
+        if count is not None:
+            envelope["row_count"] = count
+        _write_json(envelope)
+    elif output_format == "ndjson":
+        if rows is None:
+            raise ValueError(f"`{command}` returns a nested record; use --format json")
+        for row in rows:
+            sys.stdout.write(json.dumps(row, sort_keys=True, ensure_ascii=False) + "\n")
+    else:
+        if rows is None:
+            raise ValueError(f"`{command}` returns a nested record; use --format json")
+        columns: list[str] = []
+        for row in rows:
+            for key in row:
+                if key not in columns:
+                    columns.append(key)
+        writer = csv.DictWriter(sys.stdout, fieldnames=columns, extrasaction="ignore")
+        writer.writeheader()
+        writer.writerows(rows)
+
+    return EXIT_EMPTY if count == 0 else EXIT_OK
+
+
+# --------------------------------------------------- non-query commands ----
 
 def cmd_init(args: argparse.Namespace) -> int:
     with connect(args.database) as connection:
         initialize(connection)
-    _print_json({"database": str(Path(args.database).resolve()), "initialized": True})
-    return 0
+    _write_json({"database": str(Path(args.database).resolve()), "initialized": True})
+    return EXIT_OK
 
 
 def cmd_sources(args: argparse.Namespace) -> int:
     found = list_official_archives()
-    _print_json({
+    _write_json({
         "official_directory": found,
         "reviewed_license_archives": list(LICENSE_ARCHIVES),
         "new_or_unreviewed": sorted(set(found) - set(LICENSE_ARCHIVES)),
         "missing": sorted(set(LICENSE_ARCHIVES) - set(found)),
     })
-    return 0
+    return EXIT_OK
 
 
 def cmd_refresh(args: argparse.Namespace) -> int:
@@ -80,173 +379,177 @@ def cmd_refresh(args: argparse.Namespace) -> int:
                 )
                 raw_only = normalized_exists is not None and not args.normalized_only
                 action = "completing raw tables for" if raw_only else "importing"
-                print(f"{action} {name} ({download.byte_size:,} bytes)", file=sys.stderr, flush=True)
+                print(f"{action} {name} ({download.byte_size:,} bytes)",
+                      file=sys.stderr, flush=True)
                 counts = import_archive(
-                    connection,
-                    download,
-                    full_raw=not args.normalized_only,
-                    normalized=not raw_only,
+                    connection, download,
+                    full_raw=not args.normalized_only, normalized=not raw_only,
                 )
                 disposition = "raw-completed" if raw_only else "imported"
                 normalized_changed = normalized_changed or not raw_only
             else:
-                print(f"unchanged {name}; retaining verified import", file=sys.stderr, flush=True)
+                print(f"unchanged {name}; retaining verified import",
+                      file=sys.stderr, flush=True)
                 disposition = "unchanged"
-            results.append({"archive": name, "sha256": download.sha256, "counts": counts, "status": disposition})
+            results.append({"archive": name, "sha256": download.sha256,
+                            "counts": counts, "status": disposition})
         if normalized_changed:
             print("rebuilding search and spatial indexes", file=sys.stderr, flush=True)
             rebuild_indexes(connection)
         write_manifest(connection, args.manifest)
-    _print_json({"database": str(Path(args.database).resolve()), "imports": results})
-    return 0
+    _write_json({"database": str(Path(args.database).resolve()), "imports": results})
+    return EXIT_OK
 
 
-def cmd_callsign(args: argparse.Namespace) -> int:
-    with connect(args.database, read_only=True) as connection:
-        _print_json(callsign(connection, args.callsign))
-    return 0
+def capabilities_manifest() -> dict[str, Any]:
+    return {
+        "tool": "spectrum-wrangler",
+        "version": __version__,
+        "authority": "Federal Communications Commission, Universal Licensing System",
+        "read_only_queries": True,
+        "formats": ["table", "json", "ndjson", "csv"],
+        "exit_codes": {
+            str(EXIT_OK): "success",
+            str(EXIT_EMPTY): "request understood, zero matching records",
+            str(EXIT_ERROR): "invalid request or database error",
+        },
+        "guidance": GUIDANCE,
+        "commands": [
+            {
+                "name": operation.name,
+                "summary": operation.summary,
+                "returns": "rows" if operation.rows_key or operation.tabular else "record",
+                "examples": list(operation.examples),
+                "parameters": [
+                    {
+                        "name": parameter.name,
+                        "flag": (
+                            parameter.name
+                            if parameter.positional or parameter.optional_positional
+                            else f"--{parameter.name.replace('_', '-')}"
+                        ),
+                        "type": parameter.type.__name__,
+                        "positional": parameter.positional or parameter.optional_positional,
+                        "required": parameter.positional,
+                        "default": parameter.default,
+                        "choices": list(parameter.choices) if parameter.choices else None,
+                        "help": parameter.help,
+                    }
+                    for parameter in operation.params
+                ],
+            }
+            for operation in OPERATIONS
+        ],
+    }
 
 
-def cmd_frequency(args: argparse.Namespace) -> int:
-    with connect(args.database, read_only=True) as connection:
-        _print_json(frequency(connection, args.center_mhz, args.tolerance_khz, args.limit))
-    return 0
+# ---------------------------------------------------------------- parser ----
 
-
-def cmd_nearby(args: argparse.Namespace) -> int:
-    with connect(args.database, read_only=True) as connection:
-        _print_json(nearby(connection, args.latitude, args.longitude, args.radius_km, args.limit))
-    return 0
-
-
-def cmd_search(args: argparse.Namespace) -> int:
-    with connect(args.database, read_only=True) as connection:
-        _print_json(search_licenses(
-            connection,
-            callsign_text=args.callsign,
-            entity_name=args.name,
-            state=args.state,
-            service=args.service,
-            status=args.status,
-            limit=args.limit,
-        ))
-    return 0
-
-
-def cmd_status(args: argparse.Namespace) -> int:
-    with connect(args.database, read_only=True) as connection:
-        _print_json(database_status(connection))
-    return 0
-
-
-def cmd_schema(args: argparse.Namespace) -> int:
-    with connect(args.database, read_only=True) as connection:
-        _print_json(describe_schema(connection, args.table))
-    return 0
-
-
-def cmd_sql(args: argparse.Namespace) -> int:
-    sql = args.sql if args.sql is not None else sys.stdin.read()
-    with connect(args.database, read_only=True) as connection:
-        _print_json(execute_readonly_sql(
-            connection,
-            sql,
-            limit=args.limit,
-            timeout_ms=args.timeout_ms,
-            allow_sensitive=args.allow_sensitive,
-        ))
-    return 0
-
-
-def cmd_mcp(args: argparse.Namespace) -> int:
-    from .mcp_server import serve
-    serve(Path(args.database), allow_sensitive=args.allow_sensitive)
-    return 0
+def _add_params(sub: argparse.ArgumentParser, operation: Operation) -> None:
+    groups = {
+        key: sub.add_mutually_exclusive_group(required=True)
+        for key in operation.exclusive_required
+    }
+    for parameter in operation.params:
+        target = groups.get(parameter.exclusive or "", sub)
+        if parameter.positional:
+            target.add_argument(parameter.name, type=parameter.type, help=parameter.help)
+        elif parameter.optional_positional:
+            target.add_argument(parameter.name, nargs="?", type=parameter.type,
+                                help=parameter.help)
+        else:
+            target.add_argument(
+                f"--{parameter.name.replace('_', '-')}", dest=parameter.name,
+                type=parameter.type, default=parameter.default,
+                choices=parameter.choices, help=parameter.help,
+            )
 
 
 def parser() -> argparse.ArgumentParser:
-    root = argparse.ArgumentParser(prog="spectrum-wrangler")
+    root = argparse.ArgumentParser(
+        prog="spectrum-wrangler",
+        description="Query the FCC's public spectrum licensing data locally.",
+    )
     root.add_argument("--version", action="version", version=__version__)
     root.add_argument("--database", default=DEFAULT_DB, type=Path)
+    root.add_argument(
+        "--format", dest="output_format",
+        choices=("table", "json", "ndjson", "csv"), default=None,
+        help="default: table on a terminal, json when piped",
+    )
     commands = root.add_subparsers(dest="command", required=True)
 
-    init = commands.add_parser("init", help="create an empty indexed database")
+    for operation in OPERATIONS:
+        epilog = None
+        if operation.examples:
+            epilog = "examples:\n  " + "\n  ".join(
+                f"spectrum-wrangler {example}" for example in operation.examples
+            )
+        sub = commands.add_parser(
+            operation.name, help=operation.summary, description=operation.summary,
+            epilog=epilog, formatter_class=argparse.RawDescriptionHelpFormatter,
+        )
+        _add_params(sub, operation)
+        sub.set_defaults(operation=operation)
+
+    caps = commands.add_parser(
+        "capabilities",
+        help="describe every command, argument, format, and exit code as JSON",
+        description="Describe every command, argument, format, and exit code as JSON.",
+    )
+    caps.set_defaults(func=lambda a: emit(
+        "capabilities", capabilities_manifest(), None, a.output_format))
+
+    init = commands.add_parser("init", help="create or migrate the database schema")
     init.set_defaults(func=cmd_init)
 
-    sources = commands.add_parser("sources", help="compare FCC's live directory with the reviewed archive set")
+    sources = commands.add_parser(
+        "sources", help="compare the FCC's live directory with the reviewed archive set")
     sources.set_defaults(func=cmd_sources)
 
-    refresh = commands.add_parser("refresh", help="download and stream current weekly ULS license archives")
-    refresh.add_argument("--archive", action="append", default=[], help="alias/archive; repeat, or use all")
+    refresh = commands.add_parser(
+        "refresh", help="download and import current weekly ULS license archives")
+    refresh.add_argument("--archive", action="append", default=[],
+                         help="alias or archive name; repeat for several")
     refresh.add_argument("--cache", default=DEFAULT_CACHE, type=Path)
     refresh.add_argument("--manifest", default=DEFAULT_MANIFEST, type=Path)
     refresh.add_argument("--force-download", action="store_true")
-    refresh.add_argument(
-        "--normalized-only",
-        action="store_true",
-        help="skip lossless raw tables to save space (not recommended for agent use)",
-    )
+    refresh.add_argument("--normalized-only", action="store_true",
+                         help="skip lossless raw tables to save space")
     refresh.add_argument("--force-import", action="store_true")
     refresh.set_defaults(func=cmd_refresh)
-
-    lookup = commands.add_parser("callsign", help="look up an exact callsign")
-    lookup.add_argument("callsign")
-    lookup.set_defaults(func=cmd_callsign)
-
-    freq = commands.add_parser("frequency", help="find assignments around a center frequency")
-    freq.add_argument("center_mhz", type=float)
-    freq.add_argument("--tolerance-khz", type=float, default=12.5)
-    freq.add_argument("--limit", type=int, default=100)
-    freq.set_defaults(func=cmd_frequency)
-
-    near = commands.add_parser("nearby", help="find licensed sites near a coordinate")
-    near.add_argument("latitude", type=float)
-    near.add_argument("longitude", type=float)
-    near.add_argument("--radius-km", type=float, default=10.0)
-    near.add_argument("--limit", type=int, default=100)
-    near.set_defaults(func=cmd_nearby)
-
-    search = commands.add_parser("search", help="search normalized FCC licenses")
-    search.add_argument("--callsign")
-    search.add_argument("--name")
-    search.add_argument("--state")
-    search.add_argument("--service")
-    search.add_argument("--status")
-    search.add_argument("--limit", type=int, default=100)
-    search.set_defaults(func=cmd_search)
-
-    status = commands.add_parser("status", help="show loaded source provenance and counts")
-    status.set_defaults(func=cmd_status)
-
-    schema = commands.add_parser("schema", help="list queryable tables or describe one table")
-    schema.add_argument("table", nargs="?")
-    schema.set_defaults(func=cmd_schema)
-
-    sql = commands.add_parser("sql", help="execute one bounded read-only SQLite query")
-    sql.add_argument("sql", nargs="?", help="query text; reads stdin when omitted")
-    sql.add_argument("--limit", type=int, default=200)
-    sql.add_argument("--timeout-ms", type=int, default=5000)
-    sql.add_argument(
-        "--allow-sensitive",
-        action="store_true",
-        help="permit raw FCC contact/address fields in this local CLI result",
-    )
-    sql.set_defaults(func=cmd_sql)
-
-    mcp = commands.add_parser("mcp", help="serve privacy-filtered MCP over stdio")
-    mcp.add_argument(
-        "--allow-sensitive",
-        action="store_true",
-        help="expose raw FCC contact/address/FRN fields to this local MCP client",
-    )
-    mcp.set_defaults(func=cmd_mcp)
     return root
 
 
-def main(argv: list[str] | None = None) -> None:
+def _run_operation(args: argparse.Namespace) -> int:
+    operation: Operation = args.operation
+    database = Path(args.database)
+    if not database.expanduser().exists():
+        raise ValueError(
+            f"database does not exist: {database}; run `spectrum-wrangler refresh` first"
+        )
+    with connect(database, read_only=True) as connection:
+        payload = operation.run(connection, args)
+    return emit(operation.name, payload, operation.rows_key, args.output_format)
+
+
+def main(argv: list[str] | None = None, *, default_format: str | None = None) -> None:
     args = parser().parse_args(argv)
+    if args.output_format is None:
+        args.output_format = default_format or ("table" if sys.stdout.isatty() else "json")
     try:
+        if hasattr(args, "operation"):
+            raise SystemExit(_run_operation(args))
         raise SystemExit(args.func(args))
     except (OSError, ValueError, RuntimeError, sqlite3.Error) as error:
-        print(f"error: {error}", file=sys.stderr)
-        raise SystemExit(2) from error
+        if args.output_format in ("json", "ndjson", "csv"):
+            json.dump({"ok": False, "command": args.command, "error": str(error)},
+                      sys.stderr, ensure_ascii=False)
+            sys.stderr.write("\n")
+        else:
+            print(f"error: {error}", file=sys.stderr)
+        raise SystemExit(EXIT_ERROR) from error
+
+
+if __name__ == "__main__":
+    main()

@@ -262,9 +262,11 @@ def _en_rows(lines: Iterable[list[str]]) -> Iterator[tuple]:
         if not entity_name:
             parts = [part for part in (_value(c, 8), _value(c, 9), _value(c, 10), _value(c, 11)) if part]
             entity_name = " ".join(parts) or None
-        # Deliberately discard phone, fax, email, address, ZIP, PO box, and FRN.
-        yield (unique_id, _value(c, 4), entity_type, entity_name, _value(c, 17),
-               _value(c, 23), _value(c, 25), _value(c, 26))
+        # FRN is the FCC Registration Number: the licensee's durable public
+        # identifier, and the only reliable way to group an organization whose
+        # name is typed differently on every filing.
+        yield (unique_id, _value(c, 4), entity_type, entity_name, _value(c, 22),
+               _value(c, 17), _value(c, 23), _value(c, 25), _value(c, 26))
 
 
 def _lo_rows(lines: Iterable[list[str]]) -> Iterator[tuple]:
@@ -327,7 +329,7 @@ MEMBERS: dict[str, tuple[str, str, Callable[..., Iterator[tuple]]]] = {
         "amateur", _am_rows,
     ),
     "EN.dat": (
-        "INSERT OR IGNORE INTO entities(unique_system_id,callsign,entity_type,display_name,state,applicant_type,status_code,status_date) VALUES (?,?,?,?,?,?,?,?)",
+        "INSERT OR IGNORE INTO entities(unique_system_id,callsign,entity_type,display_name,frn,state,applicant_type,status_code,status_date) VALUES (?,?,?,?,?,?,?,?,?)",
         "entities", _en_rows,
     ),
     "LO.dat": (

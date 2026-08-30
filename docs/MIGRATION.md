@@ -18,7 +18,7 @@ Version 0.3 therefore changes both the publication and storage model.
 | Required Postgres/PostGIS | Portable SQLite with FTS5 and RTree |
 | Destructive table replacement | Per-archive replacement with content-hash reuse |
 | No source provenance | URL, timestamps, ETag, SHA-256, bytes, and counts |
-| Human SQL only | CLI plus privacy-filtered, bounded MCP tools/resources/prompts |
+| Human SQL only | Structured commands, bounded SQL, and machine-readable output |
 
 ## Compatibility boundaries
 

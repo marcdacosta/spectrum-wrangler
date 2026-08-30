@@ -38,6 +38,13 @@ The LMS endpoint redirected to FCC system maintenance during final verification,
 
 ## Why the agent surface uses MCP and SQLite
 
+> **Later note.** The MCP server described below was removed after this was
+> written. It duplicated every parameter declaration in a third place, needed a
+> client restart to pick up changes, and had nowhere to carry the dataset
+> judgment that turned out to matter most. The CLI plus
+> [the skill](../skills/spectrum-wrangler/SKILL.md) replaced it. The reasoning
+> about SQLite, the read-only authorizer, and bounded SQL still stands.
+
 The Model Context Protocol lets servers publish discoverable, JSON-Schema-described tools that models can invoke. Its July 28, 2026 revision replaced the initialization handshake with stateless per-request metadata and added `server/discover` plus cache hints for list results. [MCP 2026-07-28 release](https://blog.modelcontextprotocol.io/posts/2026-07-28/)
 
 Spectrum Wrangler exposes provenance/status first, exact schema discovery, structured callsign/license/frequency/proximity searches, and custom SQL. SQL runs through a SQLite URI opened in read-only mode, with `query_only`, an operation authorizer, a progress timeout, a 1,000-row ceiling, and a single-statement allow list. The structured tools return narrower projections. All original public FCC fields remain available locally in named `raw_*` tables; MCP denies raw contact/address/FRN and overflow fields unless its local operator explicitly enables sensitive access.

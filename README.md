@@ -38,7 +38,7 @@ Nothing needs installing. Clone the repository and run it in place:
     cd spectrum-wrangler
     python3 -m spectrum_wrangler sources
 
-`pip install -e .` additionally puts `spectrum-wrangler`, `spectrum-wrangler-agent`, and `spectrum-wrangler-mcp` on your PATH. Every example here uses the `python3 -m` form so it works either way.
+`pip install -e .` additionally puts `spectrum-wrangler` and `spectrum-wrangler-agent` on your PATH. Every example here uses the `python3 -m` form so it works either way.
 
 ## Start small
 One archive is enough to learn the shape of the data, and the smallest is a four-second import:
@@ -88,32 +88,33 @@ Or in SQL, against the same database:
          FROM licenses GROUP BY 1 ORDER BY 2 DESC"
 
 # How agents use it
-Spectrum Wrangler ships two read-only surfaces built for programs rather than people. Both share one query layer, so an agent and a person asking the same question get the same answer.
+Spectrum Wrangler is one CLI, used the same way by a person and by an agent. Every operation is declared once in the code, so the commands, the help text, and the machine-readable manifest cannot drift apart.
 
-**A Model Context Protocol server.** The checked-in [`.mcp.json`](.mcp.json) starts it; the equivalent command is `python3 -m spectrum_wrangler mcp`. It speaks MCP `2026-07-28` and still accepts the `2025-11-25`, `2025-06-18`, and `2024-11-05` handshakes. Thirteen tools cover provenance (`spectrum_status`), discovery (`describe_schema`, `list_radio_services`), point lookups (`lookup_callsign`, `search_licenses`, `search_text`, `search_frequency`, `search_nearby_sites`), whole records (`get_license_record`), aggregates (`survey_band`, `summarize_geography`, `list_expirations`), and bounded SQL (`query_spectrum_sql`). It also publishes guide, schema, and provenance resources and an `investigate_spectrum` prompt.
+    spectrum-wrangler capabilities
 
-**An agent CLI**, for agents that drive a shell instead of MCP:
+`capabilities` describes every command, argument, output format, and exit code as JSON, so an agent can discover the whole surface in one call. Output adapts to the consumer — a table on a terminal, JSON when piped — and `--format table|json|ndjson|csv` always wins.
 
-    python3 -m spectrum_wrangler.agent capabilities
+    # everything about one licence, in one call
+    spectrum-wrangler license --callsign W1AW
 
-`capabilities` describes every command, argument, output format, and exit code, so an agent can discover the whole surface in one call. The commands mirror the MCP tools:
+    # who else transmits from this building
+    spectrum-wrangler nearby 40.748444 -73.985694 --radius-km 0.1
 
-    # everything about one license, in one call
-    python3 -m spectrum_wrangler.agent license --callsign W1AW
-
-    # who holds assignments across a band
-    python3 -m spectrum_wrangler.agent band 462 468 --group-by licensee
-
-    # full-text search, streamed as one JSON object per line
-    python3 -m spectrum_wrangler.agent --format ndjson text 'fire AND department'
+    # who holds a band, and who holds a name
+    spectrum-wrangler band 462 468 --group-by licensee
+    spectrum-wrangler organization --name "NEW YORK CITY POLICE"
 
     # what expires this quarter, as CSV
-    python3 -m spectrum_wrangler.agent --format csv \
-      expirations --start 2026-10-01 --end 2026-12-31 --state NY
+    spectrum-wrangler --format csv expirations --start 2026-10-01 --end 2026-12-31 --state NY
 
-Results come back as `json` (an envelope with a row count), `ndjson`, or `csv`. Exit codes separate the cases a program needs to tell apart: `0` success, `1` the request was understood but nothing matched, `2` the request was wrong. Errors are JSON on stderr.
+Exit codes separate the cases a program must tell apart: `0` success, `1` understood but nothing matched, `2` bad request. Errors are JSON on stderr in machine formats.
 
-Both surfaces are read-only and enforce it at the SQLite connection, not by convention. Custom SQL accepts one `SELECT`, `WITH`, or `EXPLAIN` statement, runs with a timeout, and returns at most 1,000 rows.
+The CLI is read-only and enforces it at the SQLite connection rather than by convention. Custom SQL accepts one `SELECT`, `WITH`, or `EXPLAIN`, runs with a timeout, and returns at most 1,000 rows.
+
+## The skill
+[`skills/spectrum-wrangler/SKILL.md`](skills/spectrum-wrangler/SKILL.md) is the companion to the CLI, and it carries the part a tool schema cannot: what will make you confidently wrong about this dataset. Joining on `unique_system_id` alone turns one call sign into 1.8 million rows. Dates are `MM/DD/YYYY` text, so sorting them sorts by month. Counting what one organization holds has no exact answer. Point any agent at it.
+
+Earlier versions shipped a Model Context Protocol server. It was removed in favour of the CLI plus the skill: it duplicated every parameter declaration in a third place, needed a client restart to pick up changes, and had nowhere to put the judgment that actually matters here. If you need to query this from a client with no shell, that is the one thing the MCP server did better.
 
 # Current state
 Version 0.3 is a rewrite of the ingest and query layers. The purpose has not changed: get the public licensing dataset, clean its geographic fields, index it, and make it useful to query.
@@ -132,7 +133,12 @@ Known limits:
 * Coordinates come from the FCC as published; about a quarter of location records have no usable coordinate.
 * `load.py` and `sample-fcc.csv` are the original Python 2 loader and a License View sample. They are kept for reference and do not run against current data.
 
-FCC records are public but contain contact information. The normalized tables used by the CLI, the agent CLI, and MCP hold no phone, email, or street address. Raw contact, address, ZIP, and FRN fields are denied to custom SQL unless a local operator explicitly passes `--allow-sensitive`. Keep the generated database local.
+## What this data contains
+Everything here is FCC public record, published for anyone to download, and Spectrum Wrangler queries all of it. There is no column gate: the database is a local file you can open with `sqlite3`, so a gate would restrict nothing while breaking legitimate lookups.
+
+Be aware of what that means in bulk. Entity records carry licensee contact details, and the amateur archive alone is roughly 1.7 million individual licensees with names and mailing addresses. Public record, but a bulk extract of private individuals is a different thing from a single lookup — worth a thought before you republish one.
+
+Read-only *is* enforced, at the SQLite connection rather than by convention: a write is refused by the engine.
 
 # Development
 

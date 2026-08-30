@@ -10,7 +10,7 @@ from pathlib import Path
 from typing import Any
 
 
-SCHEMA_VERSION = 6
+SCHEMA_VERSION = 7
 IDENTIFIER = re.compile(r"^[a-z][a-z0-9_]*$")
 
 
@@ -84,6 +84,7 @@ CREATE TABLE IF NOT EXISTS entities (
     callsign TEXT,
     entity_type TEXT NOT NULL,
     display_name TEXT,
+    frn TEXT,
     state TEXT,
     applicant_type TEXT,
     status_code TEXT,
@@ -332,6 +333,30 @@ def initialize(connection: sqlite3.Connection) -> None:
         connection.execute(
             "ALTER TABLE sources ADD COLUMN raw_parser_version INTEGER NOT NULL DEFAULT 1"
         )
+    entity_columns = {row[1] for row in connection.execute("PRAGMA table_info(entities)")}
+    if "frn" not in entity_columns:
+        connection.execute("ALTER TABLE entities ADD COLUMN frn TEXT")
+    # Backfill is keyed on the column being empty, not on having just added it:
+    # an interrupted upgrade leaves the column in place with nothing in it, and
+    # that state must still heal on the next run.
+    needs_backfill = connection.execute(
+        "SELECT NOT EXISTS(SELECT 1 FROM entities WHERE frn IS NOT NULL)"
+        " AND EXISTS(SELECT 1 FROM entities)"
+    ).fetchone()[0]
+    has_raw_en = connection.execute(
+        "SELECT count(*) FROM sqlite_schema WHERE type='table' AND name='raw_en'"
+    ).fetchone()[0]
+    if needs_backfill and has_raw_en:
+        # UPDATE...FROM lets SQLite scan raw_en once and search entities by its
+        # covering index. The correlated-subquery form scans entities and seeks
+        # raw_en per row, which is orders of magnitude slower at this size.
+        connection.execute(
+            "UPDATE entities SET frn=r.frn FROM raw_en r "
+            "WHERE r.unique_system_identifier=entities.unique_system_id "
+            "AND r.entity_type=entities.entity_type "
+            "AND r.frn IS NOT NULL AND r.frn<>''"
+        )
+    connection.execute("CREATE INDEX IF NOT EXISTS entities_frn_idx ON entities(frn)")
     # Versions 4-5 briefly created unrelated research and local-radio tables.
     # They are no longer part of the public schema. Existing copies are left
     # untouched so upgrading never deletes a local user's data.

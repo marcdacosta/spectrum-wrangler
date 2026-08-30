@@ -1,4 +1,4 @@
-"""Bounded read-only queries shared by the CLI and MCP server."""
+"""Bounded read-only queries shared by every command surface."""
 
 from __future__ import annotations
 
@@ -14,23 +14,6 @@ from typing import Any
 MAX_LIMIT = 1_000
 MAX_SQL_LENGTH = 100_000
 READ_PREFIX = re.compile(r"^\s*(?:--[^\n]*\n\s*|/\*.*?\*/\s*)*(select|with|explain)\b", re.I | re.S)
-SENSITIVE_COLUMN_PARTS = (
-    "address",
-    "attention",
-    "certifier_",
-    "email",
-    "fax",
-    "fields_json",
-    "first_name",
-    "frn",
-    "last_name",
-    "licensee_id",
-    "middle_initial",
-    "phone",
-    "po_box",
-    "social_security",
-    "zip_code",
-)
 RETIRED_SCOPE_TABLES = frozenset({
     "experiments",
     "experiment_runs",
@@ -215,9 +198,15 @@ def execute_readonly_sql(
     *,
     limit: int = 200,
     timeout_ms: int = 5_000,
-    allow_sensitive: bool = False,
 ) -> dict[str, Any]:
-    """Execute one bounded read-only statement on a read-only connection."""
+    """Execute one bounded read-only statement on a read-only connection.
+
+    The authorizer enforces read-only at the engine, which is a real control: a
+    write is refused by SQLite itself. It does not filter columns. Every field
+    here is FCC public record, and the database is a local file the caller can
+    open directly, so column gating would restrict nothing while breaking
+    organization lookups by FRN.
+    """
     limit = _limit(limit)
     if not 1 <= timeout_ms <= 30_000:
         raise ValueError("timeout_ms must be between 1 and 30000")
@@ -239,13 +228,6 @@ def execute_readonly_sql(
 
     def authorize(action: int, arg1: str | None, arg2: str | None, _db: str | None, _trigger: str | None) -> int:
         if action == sqlite3.SQLITE_READ and _is_retired_scope_table(arg1):
-            return sqlite3.SQLITE_DENY
-        if (
-            not allow_sensitive
-            and action == sqlite3.SQLITE_READ
-            and (arg1 or "").startswith("raw_")
-            and any(part in (arg2 or "").lower() for part in SENSITIVE_COLUMN_PARTS)
-        ):
             return sqlite3.SQLITE_DENY
         return sqlite3.SQLITE_DENY if action in denied else sqlite3.SQLITE_OK
 
@@ -526,4 +508,107 @@ def geography(
             "ORDER BY sites DESC LIMIT ?",
             parameters,
         )),
+    }
+
+
+def organization(
+    connection: sqlite3.Connection,
+    *,
+    frn: str | None = None,
+    name: str | None = None,
+    limit: int = 100,
+) -> dict[str, Any]:
+    """Report what one licensee holds, and how confidently it can be identified.
+
+    There is no clean organization key in ULS. `display_name` is free text and
+    is typed differently on every filing; FRN is the FCC Registration Number,
+    which is exact where present but is often blank and is issued per filing
+    office, so one body can hold several. This deliberately reports the spread
+    rather than collapsing it, because collapsing it silently is how you get a
+    confident undercount.
+    """
+    if (frn is None) == (name is None):
+        raise ValueError("provide exactly one of frn or name")
+    limit = _limit(limit)
+    columns = {row[1] for row in connection.execute("PRAGMA table_info(entities)")}
+    if "frn" not in columns:
+        raise ValueError(
+            "this database predates organization support; run "
+            "`spectrum-wrangler init` against it to add the FRN column"
+        )
+
+    if frn is not None:
+        predicate, parameters = "e.frn = ?", [frn]
+    else:
+        predicate, parameters = "e.display_name LIKE ?", [f"%{name}%"]
+
+    totals = connection.execute(
+        "SELECT count(DISTINCT e.unique_system_id) AS licenses,"
+        "count(DISTINCT e.display_name) AS name_variants,"
+        "count(DISTINCT e.frn) AS distinct_frns,"
+        "sum(CASE WHEN e.frn IS NULL OR e.frn='' THEN 1 ELSE 0 END) AS rows_without_frn "
+        f"FROM entities e WHERE e.entity_type='L' AND {predicate}",
+        parameters,
+    ).fetchone()
+    if not totals["licenses"]:
+        return {"found": False, "query": frn or name, "licenses": 0}
+
+    variants = row_dicts(connection.execute(
+        "SELECT e.display_name, e.frn, count(*) AS licenses FROM entities e "
+        f"WHERE e.entity_type='L' AND {predicate} "
+        "GROUP BY e.display_name, e.frn ORDER BY licenses DESC LIMIT ?",
+        [*parameters, limit],
+    ))
+    registrations = row_dicts(connection.execute(
+        "SELECT e.frn, count(*) AS licenses, count(DISTINCT e.display_name) AS name_variants,"
+        "min(e.display_name) AS example_name FROM entities e "
+        f"WHERE e.entity_type='L' AND {predicate} "
+        "GROUP BY e.frn ORDER BY licenses DESC LIMIT ?",
+        [*parameters, limit],
+    ))
+    services = row_dicts(connection.execute(
+        "SELECT l.radio_service_code, count(*) AS licenses FROM licenses l "
+        f"JOIN entities e ON e.unique_system_id=l.unique_system_id AND e.entity_type='L' "
+        f"WHERE {predicate} GROUP BY 1 ORDER BY licenses DESC LIMIT ?",
+        [*parameters, limit],
+    ))
+    states = row_dicts(connection.execute(
+        "SELECT lo.state, count(DISTINCT lo.unique_system_id) AS licenses FROM locations lo "
+        "JOIN entities e ON e.unique_system_id=lo.unique_system_id AND e.entity_type='L' "
+        f"WHERE lo.state IS NOT NULL AND {predicate} "
+        "GROUP BY 1 ORDER BY licenses DESC LIMIT ?",
+        [*parameters, limit],
+    ))
+
+    caveats = []
+    if frn is None:
+        caveats.append(
+            "Matched on name, which is free text: spelling variants and "
+            "abbreviations may be missed, and similarly named but unrelated "
+            "bodies may be included."
+        )
+        if totals["distinct_frns"] > 1:
+            caveats.append(
+                f"These records carry {totals['distinct_frns']} different FRNs, "
+                "so this name may cover several registered bodies."
+            )
+    if totals["rows_without_frn"]:
+        caveats.append(
+            f"{totals['rows_without_frn']} matching records carry no FRN, so an "
+            "FRN-only search would miss them."
+        )
+
+    return {
+        "found": True,
+        "query": frn or name,
+        "matched_by": "frn" if frn else "name",
+        "licenses": totals["licenses"],
+        "name_variants_count": totals["name_variants"],
+        "distinct_frns": totals["distinct_frns"],
+        "records_without_frn": totals["rows_without_frn"],
+        "caveats": caveats,
+        "name_variants": variants,
+        "registrations": registrations,
+        "services": services,
+        "states": states,
     }

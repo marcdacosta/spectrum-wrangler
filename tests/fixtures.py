@@ -13,11 +13,13 @@ from pathlib import Path
 from spectrum_wrangler.db import connect, initialize
 
 
+# TEST1 and TEST3 share one FRN under two different spellings, which is the
+# situation that makes display_name matching undercount a real organization.
 LICENSES = [
-    # usi, callsign, status, service, grant, expired, last_action
-    (1, "TEST1", "A", "PW", "01/02/2020", "09/15/2026", "03/04/2026"),
-    (2, "TEST2", "A", "HA", "05/06/2019", "01/10/2031", "12/31/2025"),
-    (3, "TEST3", "E", "PW", "07/08/2015", "02/02/2020", "02/02/2020"),
+    # usi, callsign, status, service, grant, expired, last_action, name, frn
+    (1, "TEST1", "A", "PW", "01/02/2020", "09/15/2026", "03/04/2026", "CITY OF TEST", "0001234567"),
+    (2, "TEST2", "A", "HA", "05/06/2019", "01/10/2031", "12/31/2025", "SOMEONE ELSE", "0009999999"),
+    (3, "TEST3", "E", "PW", "07/08/2015", "02/02/2020", "02/02/2020", "City of Test", "0001234567"),
 ]
 
 
@@ -29,7 +31,7 @@ def build_fixture(path: Path) -> None:
             "VALUES(?,?,?,?,?,?)",
             ("test", "FCC ULS", "https://example.test", "2026-01-01T00:00:00Z", "0" * 64, 0),
         )
-        for usi, sign, status, service, grant, expired, action in LICENSES:
+        for usi, sign, status, service, grant, expired, action, name, frn in LICENSES:
             connection.execute(
                 "INSERT INTO licenses(unique_system_id,source_id,source_archive,callsign,"
                 "license_status,radio_service_code,grant_date,expired_date,last_action_date) "
@@ -37,14 +39,14 @@ def build_fixture(path: Path) -> None:
                 (usi, sign, status, service, grant, expired, action),
             )
             connection.execute(
-                "INSERT INTO entities(unique_system_id,callsign,entity_type,display_name,state) "
-                "VALUES(?,?,'L',?,?)",
-                (usi, sign, f"CITY OF {sign}", "NY"),
+                "INSERT INTO entities(unique_system_id,callsign,entity_type,display_name,frn,state) "
+                "VALUES(?,?,'L',?,?,?)",
+                (usi, sign, name, frn, "NY"),
             )
             connection.execute(
                 "INSERT INTO license_fts(callsign,display_name,radio_service_code,state,"
                 "unique_system_id) VALUES(?,?,?,?,?)",
-                (sign, f"CITY OF {sign}", service, "NY", usi),
+                (sign, name, service, "NY", usi),
             )
         connection.execute(
             "INSERT INTO locations(unique_system_id,callsign,location_number,county,state,"

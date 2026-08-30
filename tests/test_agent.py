@@ -15,6 +15,7 @@ from spectrum_wrangler.query import (
     expirations,
     geography,
     license_record,
+    organization,
     radio_services,
     search_licenses,
     text_search,
@@ -98,6 +99,56 @@ class QueryTests(unittest.TestCase):
             rows = search_licenses(connection, state="NY")
         self.assertEqual([row["callsign"] for row in rows], ["TEST1", "TEST2", "TEST3"])
 
+    def test_organization_reports_the_identity_spread(self) -> None:
+        """One body files under two spellings; the report must show both."""
+        with self.db() as connection:
+            org = organization(connection, name="City of Test")
+        self.assertTrue(org["found"])
+        self.assertEqual(org["licenses"], 2)
+        self.assertEqual(org["name_variants_count"], 2)
+        self.assertEqual(org["matched_by"], "name")
+        self.assertEqual(
+            sorted(v["display_name"] for v in org["name_variants"]),
+            ["CITY OF TEST", "City of Test"],
+        )
+
+    def test_organization_by_frn_is_exact(self) -> None:
+        with self.db() as connection:
+            org = organization(connection, frn="0001234567")
+        self.assertEqual(org["matched_by"], "frn")
+        self.assertEqual(org["licenses"], 2)
+        self.assertEqual(org["distinct_frns"], 1)
+        self.assertEqual([s["radio_service_code"] for s in org["services"]], ["PW"])
+
+    def test_organization_warns_when_a_name_spans_several_frns(self) -> None:
+        with self.db() as connection:
+            org = organization(connection, name="e")
+        self.assertGreater(org["distinct_frns"], 1)
+        self.assertTrue(any("different FRNs" in c for c in org["caveats"]))
+
+    def test_organization_warns_about_records_carrying_no_frn(self) -> None:
+        with connect(self.path) as connection:
+            connection.execute(
+                "INSERT INTO entities(unique_system_id,callsign,entity_type,display_name,frn,state)"
+                " VALUES(2,'TEST2','L','City of Test - Annex',NULL,'NY')"
+            )
+            connection.commit()
+        with self.db() as connection:
+            org = organization(connection, name="City of Test")
+        self.assertEqual(org["records_without_frn"], 1)
+        self.assertTrue(any("no FRN" in c for c in org["caveats"]))
+
+    def test_organization_requires_exactly_one_identifier(self) -> None:
+        with self.db() as connection:
+            with self.assertRaises(ValueError):
+                organization(connection)
+            with self.assertRaises(ValueError):
+                organization(connection, frn="1", name="x")
+
+    def test_organization_reports_an_unknown_frn(self) -> None:
+        with self.db() as connection:
+            self.assertFalse(organization(connection, frn="0000000000")["found"])
+
     def test_geography_and_services(self) -> None:
         with self.db() as connection:
             areas = geography(connection, level="county")["areas"]
@@ -136,11 +187,12 @@ class AgentCliTests(unittest.TestCase):
         self.assertEqual(
             names,
             {
-                "band", "callsign", "capabilities", "expirations", "frequency", "geography",
-                "license", "nearby", "schema", "search", "services", "sql", "status", "text",
+                "band", "callsign", "expirations", "frequency", "geography",
+                "license", "nearby", "organization", "schema", "search", "services",
+                "sql", "status", "text",
             },
         )
-        self.assertTrue(payload["read_only"])
+        self.assertTrue(payload["read_only_queries"])
         self.assertIn("status", payload["guidance"])
 
     def test_json_envelope_carries_row_count(self) -> None:

@@ -8,7 +8,6 @@ import zipfile
 from pathlib import Path
 
 from spectrum_wrangler.db import connect, initialize
-from spectrum_wrangler.mcp_server import LATEST_PROTOCOL, McpServer
 from spectrum_wrangler.query import describe_schema, execute_readonly_sql, nearby
 from spectrum_wrangler.uls import Download, _dms, import_archive, imported_counts, resolve_archives
 
@@ -94,16 +93,21 @@ class DatabaseTests(unittest.TestCase):
                 normalized_schema = " ".join(
                     item[1] for item in connection.execute("PRAGMA table_info(entities)")
                 ).lower()
-                for forbidden in ("phone", "email", "street_address", "frn", "zip_code"):
-                    self.assertNotIn(forbidden, normalized_schema)
-                with self.assertRaisesRegex(Exception, "prohibited|not authorized"):
-                    execute_readonly_sql(connection, "SELECT email FROM raw_en")
-                with self.assertRaisesRegex(Exception, "prohibited|not authorized"):
-                    execute_readonly_sql(connection, "SELECT extra_fields_json FROM raw_en")
-                allowed = execute_readonly_sql(
-                    connection, "SELECT email FROM raw_en", allow_sensitive=True
+                # FRN is normalized: it is the organization key, not contact data.
+                self.assertIn("frn", normalized_schema)
+                # Bulk contact detail stays raw-only, because normalization is
+                # about what queries need, not about withholding public record.
+                for raw_only in ("phone", "email", "street_address", "zip_code"):
+                    self.assertNotIn(raw_only, normalized_schema)
+                # Every published field is queryable; there is no column gate.
+                result = execute_readonly_sql(connection, "SELECT email FROM raw_en")
+                self.assertEqual(result["rows"][0]["email"], "private@example.test")
+                # Undocumented trailing fields are readable too: drift is only
+                # useful if you can see what drifted.
+                drift = execute_readonly_sql(
+                    connection, "SELECT extra_fields_json FROM raw_en"
                 )
-                self.assertEqual(allowed["rows"][0]["email"], "private@example.test")
+                self.assertEqual(len(drift["rows"]), 1)
                 self.assertEqual(counts["raw.HD"], 1)
                 self.assertEqual(counts["raw.EN"], 1)
                 self.assertEqual(counts["raw.CO"], 1)
@@ -208,45 +212,3 @@ class DatabaseTests(unittest.TestCase):
                     "SELECT unique_system_identifier FROM raw_hd"
                 ).fetchone()[0], "43")
 
-    def test_mcp_2026_discovery_and_structured_tool_result(self) -> None:
-        with tempfile.TemporaryDirectory() as directory:
-            path = Path(directory) / "mcp.sqlite3"
-            with connect(path) as connection:
-                initialize(connection)
-            server = McpServer(path)
-            discovery = server.handle({
-                "jsonrpc": "2.0",
-                "id": 1,
-                "method": "server/discover",
-                "params": {"_meta": {
-                    "io.modelcontextprotocol/protocolVersion": LATEST_PROTOCOL,
-                    "io.modelcontextprotocol/clientInfo": {"name": "test", "version": "1"},
-                    "io.modelcontextprotocol/clientCapabilities": {},
-                }},
-            })
-            self.assertIn(LATEST_PROTOCOL, discovery["result"]["supportedVersions"])
-            result = server.handle({
-                "jsonrpc": "2.0",
-                "id": 2,
-                "method": "tools/call",
-                "params": {
-                    "name": "spectrum_status",
-                    "arguments": {},
-                    "_meta": {"io.modelcontextprotocol/protocolVersion": LATEST_PROTOCOL},
-                },
-            })
-            self.assertEqual(result["result"]["resultType"], "complete")
-            self.assertIn("structuredContent", result["result"])
-
-            unsupported = server.handle({
-                "jsonrpc": "2.0",
-                "id": 3,
-                "method": "tools/list",
-                "params": {"_meta": {"io.modelcontextprotocol/protocolVersion": "2099-01-01"}},
-            })
-            self.assertEqual(unsupported["error"]["code"], -32022)
-            self.assertIn(LATEST_PROTOCOL, unsupported["error"]["data"]["supported"])
-
-
-if __name__ == "__main__":
-    unittest.main()
