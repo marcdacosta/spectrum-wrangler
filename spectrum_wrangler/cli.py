@@ -17,12 +17,14 @@ import json
 import os
 import sqlite3
 import sys
+import time
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Callable
 
 from . import __version__
 from .db import connect, initialize
+from .progress import Reporter, human_bytes, human_count, human_duration, human_rate
 from .query import (
     band_survey,
     callsign,
@@ -391,11 +393,14 @@ def cmd_init(args: argparse.Namespace) -> int:
         return EXIT_OK
     requested = args.archive or [STARTER_ARCHIVE]
     if not args.archive:
-        print(
-            "first run: loading the starter archive (paging, about 6.5 MB). "
-            "`spectrum-wrangler refresh` downloads the complete dataset.",
-            file=sys.stderr, flush=True,
-        )
+        reporter = Reporter()
+        reporter.say(reporter.bold("first run: no data loaded yet"))
+        reporter.say(reporter.dim(
+            "  loading the starter archive (paging, about 6.5 MB) — "
+            "under a minute, so there is something to query right away"))
+        reporter.say(reporter.dim(
+            "  `spectrum-wrangler refresh` afterwards downloads the complete "
+            "dataset (1.25 GB, roughly 23 GB on disk)"))
     results = _load_archives(database, _cache_for(args, database),
                              _manifest_for(args, database), resolve_archives(requested))
     _write_json({
@@ -429,6 +434,14 @@ def _manifest_for(args: argparse.Namespace, database: Path) -> Path:
     return given if given is not None else database.parent / "source-manifest.json"
 
 
+def _database_bytes(database: Path) -> int:
+    return sum(
+        candidate.stat().st_size
+        for suffix in ("", "-wal", "-shm")
+        if (candidate := Path(str(database) + suffix)).exists()
+    )
+
+
 def _load_archives(
     database: Path, cache: Path, manifest: Path, names: list[str], *,
     force_download: bool = False, normalized_only: bool = False,
@@ -439,13 +452,38 @@ def _load_archives(
     missing = [name for name in names if name not in official]
     if missing:
         raise RuntimeError(f"FCC directory does not currently list: {', '.join(missing)}")
+    reporter = Reporter()
+    total = len(names)
+    started = time.monotonic()
+    reporter.say(f"loading {total} archive{'s' if total != 1 else ''} into {database}")
+    if total == len(LICENSE_ARCHIVES):
+        reporter.say(reporter.dim(
+            "  the complete set downloads about 1.25 GB and builds a roughly "
+            "23 GB database — 15 minutes of importing plus the download"))
+    reporter.say(reporter.dim(
+        "  cached downloads and unchanged imports are reused automatically"))
     results = []
     normalized_changed = False
     with connect(database) as connection:
         initialize(connection)
-        for name in names:
-            print(f"downloading {name}", file=sys.stderr, flush=True)
-            download = download_archive(name, cache, force=force_download)
+        for position, name in enumerate(names, start=1):
+            reporter.stage(position, total, name)
+            reporter.begin("downloading")
+
+            def on_download(done: int, expected: int) -> None:
+                span = f" of {human_bytes(expected)}" if expected else ""
+                rate = human_rate(done, reporter.elapsed, "B")
+                reporter.update(f"{human_bytes(done)}{span}  {rate}")
+
+            download = download_archive(name, cache, force=force_download,
+                                        on_progress=on_download)
+            if download.cached:
+                reporter.done("cached", f"{human_bytes(download.byte_size)}, "
+                                        "checksum verified")
+            else:
+                rate = human_rate(download.byte_size, reporter.elapsed, "B")
+                reporter.done("downloaded",
+                              f"{human_bytes(download.byte_size)} ({rate})")
             counts = None if force_import else imported_counts(
                 connection, download, require_raw=not normalized_only
             )
@@ -454,25 +492,42 @@ def _load_archives(
                     connection, download, require_raw=False
                 )
                 raw_only = normalized_exists is not None and not normalized_only
-                action = "completing raw tables for" if raw_only else "importing"
-                print(f"{action} {name} ({download.byte_size:,} bytes)",
-                      file=sys.stderr, flush=True)
+                reporter.begin("completing raw tables" if raw_only else "importing")
+                seen: dict[str, int] = {}
+
+                def on_import(label: str, done: int) -> None:
+                    seen[label] = done
+                    rows = sum(seen.values())
+                    rate = human_rate(rows, reporter.elapsed, "rows")
+                    reporter.update(f"{human_count(rows)} rows  {rate}  ({label})")
+
                 counts = import_archive(
                     connection, download,
                     full_raw=not normalized_only, normalized=not raw_only,
+                    on_progress=on_import,
                 )
+                rows = sum(counts.values())
+                rate = human_rate(rows, reporter.elapsed, "rows")
+                reporter.done("completed raw tables" if raw_only else "imported",
+                              f"{human_count(rows)} rows ({rate})")
                 disposition = "raw-completed" if raw_only else "imported"
                 normalized_changed = normalized_changed or not raw_only
             else:
-                print(f"unchanged {name}; retaining verified import",
-                      file=sys.stderr, flush=True)
+                reporter.done("unchanged", "this snapshot is already imported")
                 disposition = "unchanged"
             results.append({"archive": name, "sha256": download.sha256,
                             "counts": counts, "status": disposition})
         if normalized_changed:
-            print("rebuilding search and spatial indexes", file=sys.stderr, flush=True)
+            reporter.begin("indexing")
             rebuild_indexes(connection)
+            reporter.done("indexed", "search and spatial indexes rebuilt")
         write_manifest(connection, manifest)
+    imported = sum(r["status"] in ("imported", "raw-completed") for r in results)
+    unchanged = len(results) - imported
+    reporter.say(reporter.bold(
+        f"done in {human_duration(time.monotonic() - started)}: "
+        f"{imported} imported, {unchanged} unchanged; "
+        f"database {human_bytes(_database_bytes(database))}"))
     return results
 
 

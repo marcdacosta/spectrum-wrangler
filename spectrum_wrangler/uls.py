@@ -7,7 +7,6 @@ import json
 import math
 import re
 import sqlite3
-import sys
 import urllib.request
 import zipfile
 from dataclasses import dataclass
@@ -70,6 +69,7 @@ class Download:
     retrieved_at: str
     last_modified: str | None
     etag: str | None
+    cached: bool = False
 
 
 def utc_now() -> str:
@@ -136,7 +136,10 @@ def resolve_archives(requested: Sequence[str]) -> list[str]:
     return resolved
 
 
-def download_archive(name: str, cache_dir: str | Path, *, force: bool = False) -> Download:
+def download_archive(
+    name: str, cache_dir: str | Path, *, force: bool = False,
+    on_progress: Callable[[int, int], None] | None = None,
+) -> Download:
     destination = Path(cache_dir).expanduser().resolve() / name
     destination.parent.mkdir(parents=True, exist_ok=True)
     metadata_path = destination.with_suffix(destination.suffix + ".json")
@@ -145,16 +148,14 @@ def download_archive(name: str, cache_dir: str | Path, *, force: bool = False) -
         digest = _sha256(destination)
         if digest == metadata.get("sha256"):
             return Download(destination, metadata["url"], digest, destination.stat().st_size,
-                            metadata["retrieved_at"], metadata.get("last_modified"), metadata.get("etag"))
+                            metadata["retrieved_at"], metadata.get("last_modified"),
+                            metadata.get("etag"), cached=True)
 
     url = FCC_COMPLETE_URL + name
     request = urllib.request.Request(url, headers={"User-Agent": USER_AGENT})
     temporary = destination.with_suffix(destination.suffix + ".part")
     digest = hashlib.sha256()
     size = 0
-    # Progress belongs to a person watching; piped stderr stays one line per archive.
-    show_progress = sys.stderr.isatty()
-    reported = 0
     try:
         with urllib.request.urlopen(request, timeout=120) as response, temporary.open("wb") as output:
             last_modified = response.headers.get("Last-Modified")
@@ -164,14 +165,8 @@ def download_archive(name: str, cache_dir: str | Path, *, force: bool = False) -
                 output.write(chunk)
                 digest.update(chunk)
                 size += len(chunk)
-                if show_progress and size - reported >= 8 * 2**20:
-                    reported = size
-                    of_total = f" of {total / 2**20:,.0f}" if total else ""
-                    print(f"\r  {name}: {size / 2**20:,.0f}{of_total} MB",
-                          end="", file=sys.stderr, flush=True)
-        if reported:
-            print(f"\r  {name}: {size / 2**20:,.0f} MB downloaded",
-                  file=sys.stderr, flush=True)
+                if on_progress:
+                    on_progress(size, total)
     except Exception:
         temporary.unlink(missing_ok=True)
         raise
@@ -228,7 +223,10 @@ def _lines(archive: zipfile.ZipFile, member: str) -> Iterator[list[str]]:
         yield pending
 
 
-def _batch_insert(connection: sqlite3.Connection, sql: str, rows: Iterable[tuple], *, batch_size: int = 10_000) -> int:
+def _batch_insert(
+    connection: sqlite3.Connection, sql: str, rows: Iterable[tuple], *,
+    batch_size: int = 10_000, on_batch: Callable[[int], None] | None = None,
+) -> int:
     batch: list[tuple] = []
     count = 0
     for row in rows:
@@ -237,9 +235,13 @@ def _batch_insert(connection: sqlite3.Connection, sql: str, rows: Iterable[tuple
             connection.executemany(sql, batch)
             count += len(batch)
             batch.clear()
+            if on_batch:
+                on_batch(count)
     if batch:
         connection.executemany(sql, batch)
         count += len(batch)
+        if on_batch:
+            on_batch(count)
     return count
 
 
@@ -419,8 +421,10 @@ def _import_raw_member(
     archive_name: str,
     source_id: int,
     definitions: dict[str, list[str]],
+    on_progress: Callable[[str, int], None] | None = None,
 ) -> tuple[str, int, dict[str, int]]:
     record_type = Path(member).stem.upper()
+    on_batch = (lambda n: on_progress(record_type, n)) if on_progress else None
     columns = definitions.get(record_type)
     if columns is None:
         connection.execute(
@@ -435,6 +439,7 @@ def _import_raw_member(
             connection,
             sql,
             _unknown_rows(_lines(archive, member), archive_name, source_id, member),
+            on_batch=on_batch,
         )
         return f"raw.UNKNOWN.{record_type}", count, {"unknown_record_type_rows": count}
 
@@ -455,6 +460,7 @@ def _import_raw_member(
         connection,
         sql,
         _raw_rows(_lines(archive, member), archive_name, source_id, len(columns), metrics),
+        on_batch=on_batch,
     )
     for column in index_columns:
         suffix = "usi" if column == "unique_system_identifier" else "callsign"
@@ -481,6 +487,7 @@ def import_archive(
     replace: bool = True,
     full_raw: bool = True,
     normalized: bool = True,
+    on_progress: Callable[[str, int], None] | None = None,
 ) -> dict[str, int]:
     """Stream one complete ULS archive into fast normalized and lossless raw tables."""
     archive_name = download.path.name
@@ -518,7 +525,11 @@ def import_archive(
                     continue
                 sql, label, parser = MEMBERS[member]
                 args = (_lines(archive, member), source_id, archive_name) if member == "HD.dat" else (_lines(archive, member),)
-                counts[label] = _batch_insert(connection, sql, parser(*args))
+                counts[label] = _batch_insert(
+                    connection, sql, parser(*args),
+                    on_batch=(lambda n, label=label: on_progress(label, n))
+                    if on_progress else None,
+                )
         if full_raw:
             definitions = load_uls_schema()["tables"]
             data_members = sorted(
@@ -526,7 +537,8 @@ def import_archive(
             )
             for member in data_members:
                 label, count, drift = _import_raw_member(
-                    connection, archive, member, archive_name, source_id, definitions
+                    connection, archive, member, archive_name, source_id, definitions,
+                    on_progress=on_progress,
                 )
                 counts[label] = count
                 record_type = Path(member).stem.upper()

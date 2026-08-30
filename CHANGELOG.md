@@ -10,6 +10,11 @@
   `capabilities` guidance all point new users at it.
 * `--format` and `--database` are accepted after the subcommand as well as
   before it, where habit tends to put them.
+* `init` and `refresh` narrate the job: an upfront plan with expected sizes and
+  time, a numbered stage per archive, live download and import progress with
+  rates on an interactive terminal (spinner, in-place redraw, colour unless
+  `NO_COLOR`), and a timed summary. Piped, every step is one plain line with no
+  escape codes, so logs and agents are unaffected.
 
 ## 0.3.0 — 2026-08-30
 
