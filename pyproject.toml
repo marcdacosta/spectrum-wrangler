@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "spectrum-wrangler"
-version = "0.3.1"
+version = "0.3.2"
 description = "A provenance-tracked local database and query interface for FCC spectrum licenses"
 readme = "README.md"
 requires-python = ">=3.11"
