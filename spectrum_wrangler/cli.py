@@ -92,7 +92,9 @@ GUIDANCE = (
     "they are, then cite those dates. Prefer a structured command over `sql`. "
     "An empty result means 'not in the loaded snapshots', never 'no such FCC "
     "authorization exists'. Full-power AM/FM/TV licensing is in the FCC's "
-    "separate LMS system and is not in this database."
+    "separate LMS system and is not in this database. If no database exists yet, "
+    "`init` creates one with a small starter archive and `refresh` downloads the "
+    "complete weekly dataset."
 )
 
 
@@ -368,10 +370,41 @@ def emit(command: str, payload: Any, rows_key: str | None, output_format: str) -
 
 # --------------------------------------------------- non-query commands ----
 
+STARTER_ARCHIVE = "paging"
+
+
 def cmd_init(args: argparse.Namespace) -> int:
-    with connect(args.database) as connection:
+    """First-time setup: create the schema, and load a starter archive if empty."""
+    database = Path(args.database)
+    with connect(database) as connection:
         initialize(connection)
-    _write_json({"database": str(Path(args.database).resolve()), "initialized": True})
+        active_sources = connection.execute(
+            "SELECT count(*) FROM sources WHERE active=1"
+        ).fetchone()[0]
+    if active_sources and not args.archive:
+        _write_json({
+            "database": str(database.resolve()),
+            "initialized": True,
+            "active_sources": active_sources,
+            "hint": "data already loaded; `spectrum-wrangler refresh` updates it",
+        })
+        return EXIT_OK
+    requested = args.archive or [STARTER_ARCHIVE]
+    if not args.archive:
+        print(
+            "first run: loading the starter archive (paging, about 6.5 MB). "
+            "`spectrum-wrangler refresh` downloads the complete dataset.",
+            file=sys.stderr, flush=True,
+        )
+    results = _load_archives(database, _cache_for(args, database),
+                             _manifest_for(args, database), resolve_archives(requested))
+    _write_json({
+        "database": str(database.resolve()),
+        "initialized": True,
+        "imports": results,
+        "next": "`spectrum-wrangler refresh` downloads the complete dataset "
+                "(about 1.25 GB compressed, 23 GB database)",
+    })
     return EXIT_OK
 
 
@@ -386,12 +419,22 @@ def cmd_sources(args: argparse.Namespace) -> int:
     return EXIT_OK
 
 
-def cmd_refresh(args: argparse.Namespace) -> int:
-    database = Path(args.database)
-    cache = args.cache if args.cache is not None else database.parent / "cache" / "uls"
-    manifest = (args.manifest if args.manifest is not None
-                else database.parent / "source-manifest.json")
-    names = resolve_archives(args.archive)
+def _cache_for(args: argparse.Namespace, database: Path) -> Path:
+    given = getattr(args, "cache", None)
+    return given if given is not None else database.parent / "cache" / "uls"
+
+
+def _manifest_for(args: argparse.Namespace, database: Path) -> Path:
+    given = getattr(args, "manifest", None)
+    return given if given is not None else database.parent / "source-manifest.json"
+
+
+def _load_archives(
+    database: Path, cache: Path, manifest: Path, names: list[str], *,
+    force_download: bool = False, normalized_only: bool = False,
+    force_import: bool = False,
+) -> list[dict[str, Any]]:
+    """Download and import the named archives; shared by `init` and `refresh`."""
     official = set(list_official_archives())
     missing = [name for name in names if name not in official]
     if missing:
@@ -402,21 +445,21 @@ def cmd_refresh(args: argparse.Namespace) -> int:
         initialize(connection)
         for name in names:
             print(f"downloading {name}", file=sys.stderr, flush=True)
-            download = download_archive(name, cache, force=args.force_download)
-            counts = None if args.force_import else imported_counts(
-                connection, download, require_raw=not args.normalized_only
+            download = download_archive(name, cache, force=force_download)
+            counts = None if force_import else imported_counts(
+                connection, download, require_raw=not normalized_only
             )
             if counts is None:
-                normalized_exists = None if args.force_import else imported_counts(
+                normalized_exists = None if force_import else imported_counts(
                     connection, download, require_raw=False
                 )
-                raw_only = normalized_exists is not None and not args.normalized_only
+                raw_only = normalized_exists is not None and not normalized_only
                 action = "completing raw tables for" if raw_only else "importing"
                 print(f"{action} {name} ({download.byte_size:,} bytes)",
                       file=sys.stderr, flush=True)
                 counts = import_archive(
                     connection, download,
-                    full_raw=not args.normalized_only, normalized=not raw_only,
+                    full_raw=not normalized_only, normalized=not raw_only,
                 )
                 disposition = "raw-completed" if raw_only else "imported"
                 normalized_changed = normalized_changed or not raw_only
@@ -430,6 +473,17 @@ def cmd_refresh(args: argparse.Namespace) -> int:
             print("rebuilding search and spatial indexes", file=sys.stderr, flush=True)
             rebuild_indexes(connection)
         write_manifest(connection, manifest)
+    return results
+
+
+def cmd_refresh(args: argparse.Namespace) -> int:
+    database = Path(args.database)
+    results = _load_archives(
+        database, _cache_for(args, database), _manifest_for(args, database),
+        resolve_archives(args.archive),
+        force_download=args.force_download, normalized_only=args.normalized_only,
+        force_import=args.force_import,
+    )
     _write_json({"database": str(database.resolve()), "imports": results})
     return EXIT_OK
 
@@ -526,6 +580,9 @@ def parser() -> argparse.ArgumentParser:
     root = argparse.ArgumentParser(
         prog="spectrum-wrangler",
         description="Query the FCC's public spectrum licensing data locally.",
+        epilog="first run: `spectrum-wrangler init` creates the database and loads a "
+               "small starter archive; `spectrum-wrangler refresh` downloads the "
+               "complete FCC dataset.",
     )
     root.add_argument("--version", action="version", version=__version__)
     root.add_argument(
@@ -563,7 +620,17 @@ def parser() -> argparse.ArgumentParser:
         "capabilities", capabilities_manifest(), None, a.output_format))
     _accept_global_flags(caps)
 
-    init = commands.add_parser("init", help="create or migrate the database schema")
+    init = commands.add_parser(
+        "init",
+        help="first-time setup: create the database and load a small starter archive",
+        description="First-time setup: create or migrate the schema, and if no data is "
+                    "loaded yet download a small starter archive (paging, about 6.5 MB) "
+                    "so there is something to query. Run `refresh` for the complete "
+                    "dataset. Safe to re-run; an already-loaded database is left alone.",
+    )
+    init.add_argument("--archive", action="append", default=[],
+                      help="load this alias or archive instead of the starter; "
+                           "repeat for several")
     init.set_defaults(func=cmd_init)
     _accept_global_flags(init)
 
@@ -596,8 +663,10 @@ def _run_operation(args: argparse.Namespace) -> int:
     database = Path(args.database)
     if not database.expanduser().exists():
         raise ValueError(
-            f"database not found: {database}; build it with `spectrum-wrangler refresh`, "
-            f"or point at an existing one with --database or ${DB_ENV_VAR}"
+            f"database not found: {database}; run `spectrum-wrangler init` to create "
+            f"it with a small starter dataset, `spectrum-wrangler refresh` for the "
+            f"complete one, or point at an existing database with --database or "
+            f"${DB_ENV_VAR}"
         )
     with connect(database, read_only=True) as connection:
         payload = operation.run(connection, args)

@@ -1,5 +1,16 @@
 # Changelog
 
+## Unreleased
+
+### Added
+* `init` is now first-time setup: on an empty database it downloads and imports
+  a small starter archive (paging, about 6.5 MB) so there is something to query
+  immediately. `--archive` loads a different one instead, and an already-loaded
+  database is left alone. The root `--help`, the missing-database error, and the
+  `capabilities` guidance all point new users at it.
+* `--format` and `--database` are accepted after the subcommand as well as
+  before it, where habit tends to put them.
+
 ## 0.3.0 — 2026-08-30
 
 The rewrite release: same mission as 2017, current FCC publication, nothing to

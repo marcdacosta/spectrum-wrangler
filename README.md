@@ -21,9 +21,9 @@ Install it — Python 3.11 or newer is the only requirement:
 
 Or clone the repository and run it in place, no install step at all: `python3 -m spectrum_wrangler` from a checkout accepts every command written as `spectrum-wrangler` here.
 
-Then build a database and look at what you have:
+Then initialize it — `init` creates the database and loads a small starter archive, so there is something to query within seconds — and look at what you have:
 
-    spectrum-wrangler refresh --archive paging    # a small first database, seconds to build
+    spectrum-wrangler init
     spectrum-wrangler status
 
 One archive is enough to learn the shape of the data:

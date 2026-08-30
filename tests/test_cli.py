@@ -195,16 +195,47 @@ class SqlCommandTests(CliHarness):
 
 
 class WriteCommandTests(unittest.TestCase):
+    def run_init(self, *argv: str) -> tuple[int, dict, mock.Mock]:
+        """Run init with the download path mocked out; return code, payload, mock."""
+        out = io.StringIO()
+        with mock.patch.object(cli, "_load_archives", return_value=[]) as load:
+            with contextlib.redirect_stdout(out), contextlib.redirect_stderr(io.StringIO()):
+                with self.assertRaises(SystemExit) as raised:
+                    cli.main(list(argv))
+        return int(raised.exception.code or 0), json.loads(out.getvalue()), load
+
     def test_init_creates_an_indexed_database(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "nested" / "new.sqlite3"
-            out = io.StringIO()
-            with contextlib.redirect_stdout(out):
-                with self.assertRaises(SystemExit) as raised:
-                    cli.main(["--database", str(path), "init"])
-            self.assertEqual(raised.exception.code, 0)
-            self.assertTrue(json.loads(out.getvalue())["initialized"])
+            code, payload, _ = self.run_init("--database", str(path), "init")
+            self.assertEqual(code, 0)
+            self.assertTrue(payload["initialized"])
             self.assertTrue(path.exists())
+
+    def test_init_loads_the_starter_archive_on_an_empty_database(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "new.sqlite3"
+            code, payload, load = self.run_init("--database", str(path), "init")
+            self.assertEqual(code, 0)
+            self.assertEqual(load.call_args.args[3], ["l_paging.zip"])
+            self.assertIn("refresh", payload["next"])
+
+    def test_init_loads_a_requested_archive_instead_of_the_starter(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "new.sqlite3"
+            _, _, load = self.run_init(
+                "--database", str(path), "init", "--archive", "amateur")
+            self.assertEqual(load.call_args.args[3], ["l_amat.zip"])
+
+    def test_init_leaves_an_already_loaded_database_alone(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "loaded.sqlite3"
+            build_fixture(path)
+            code, payload, load = self.run_init("--database", str(path), "init")
+            self.assertEqual(code, 0)
+            load.assert_not_called()
+            self.assertEqual(payload["active_sources"], 1)
+            self.assertIn("refresh", payload["hint"])
 
     def test_sources_compares_the_live_directory_with_the_reviewed_set(self) -> None:
         out = io.StringIO()
@@ -283,6 +314,7 @@ class OutputContractTests(CliHarness):
                 cli.main(["--format", "json", "--database", "/absent/nowhere.sqlite3",
                           "status"])
         message = json.loads(err.getvalue())["error"]
+        self.assertIn("init", message)
         self.assertIn("refresh", message)
         self.assertIn(cli.DB_ENV_VAR, message)
 

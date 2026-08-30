@@ -18,8 +18,9 @@ public radio licensing data (ULS). People and agents use the same commands.
   Errors are JSON on stderr in machine formats.
 * The database resolves from `--database`, then `$SPECTRUM_WRANGLER_DB`, then
   `./data/spectrum-wrangler.sqlite3` if already built, then the per-user data
-  directory. If it is missing it must be built with `spectrum-wrangler refresh`
-  (a 1.25 GB download; `--archive paging` is a small start).
+  directory. If it is missing, `spectrum-wrangler init` creates it with a small
+  starter archive in seconds; `spectrum-wrangler refresh` downloads the complete
+  dataset (1.25 GB).
 
 ## Working on the code
 
