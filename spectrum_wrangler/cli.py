@@ -631,8 +631,22 @@ def _add_params(sub: argparse.ArgumentParser, operation: Operation) -> None:
             )
 
 
+class HelpfulParser(argparse.ArgumentParser):
+    """Show the relevant full help, not just a usage line, when parsing fails.
+
+    Bare `spectrum-wrangler` prints the whole command surface; an incomplete
+    subcommand prints that command's own arguments and examples, with the
+    specific problem last where the eye lands. Help goes to stderr so piped
+    stdout stays machine-clean, and the exit code remains 2.
+    """
+
+    def error(self, message: str):
+        self.print_help(sys.stderr)
+        self.exit(EXIT_ERROR, f"\nerror: {message}\n")
+
+
 def parser() -> argparse.ArgumentParser:
-    root = argparse.ArgumentParser(
+    root = HelpfulParser(
         prog="spectrum-wrangler",
         description="Query the FCC's public spectrum licensing data locally.",
         epilog="first run: `spectrum-wrangler init` creates the database and loads a "
@@ -650,7 +664,8 @@ def parser() -> argparse.ArgumentParser:
         choices=("table", "json", "ndjson", "csv"), default=None,
         help="default: table on a terminal, json when piped",
     )
-    commands = root.add_subparsers(dest="command", required=True)
+    commands = root.add_subparsers(dest="command", required=True,
+                                   parser_class=HelpfulParser)
 
     for operation in OPERATIONS:
         epilog = None

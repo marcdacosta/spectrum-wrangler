@@ -81,6 +81,39 @@ class ParserTests(unittest.TestCase):
                 cli.parser().parse_args([])
         self.assertEqual(raised.exception.code, 2)
 
+    def test_a_bare_invocation_shows_the_full_command_surface(self) -> None:
+        err = io.StringIO()
+        with contextlib.redirect_stderr(err):
+            with self.assertRaises(SystemExit) as raised:
+                cli.parser().parse_args([])
+        self.assertEqual(raised.exception.code, 2)
+        text = err.getvalue()
+        for name in ("init", "refresh", "callsign", "nearby", "sql", "capabilities"):
+            self.assertIn(name, text)
+        self.assertIn("first run:", text)
+        self.assertIn("error:", text)
+
+    def test_an_incomplete_subcommand_shows_its_own_help(self) -> None:
+        err = io.StringIO()
+        with contextlib.redirect_stderr(err):
+            with self.assertRaises(SystemExit) as raised:
+                cli.parser().parse_args(["nearby"])
+        self.assertEqual(raised.exception.code, 2)
+        text = err.getvalue()
+        self.assertIn("decimal degrees, WGS84", text)
+        self.assertIn("--radius-km", text)
+        self.assertIn("examples:", text)
+        self.assertIn("error: the following arguments are required: latitude, longitude",
+                      text)
+
+    def test_help_still_exits_zero_on_stdout(self) -> None:
+        out = io.StringIO()
+        with contextlib.redirect_stdout(out):
+            with self.assertRaises(SystemExit) as raised:
+                cli.parser().parse_args(["--help"])
+        self.assertEqual(raised.exception.code, 0)
+        self.assertIn("callsign", out.getvalue())
+
 
 class ReadCommandTests(CliHarness):
     def test_status_reports_loaded_provenance(self) -> None:

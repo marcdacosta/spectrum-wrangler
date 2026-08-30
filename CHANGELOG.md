@@ -1,5 +1,14 @@
 # Changelog
 
+## Unreleased
+
+### Added
+* Progressive disclosure on parse errors: bare `spectrum-wrangler` prints the
+  full command surface, and an incomplete subcommand (`spectrum-wrangler
+  nearby`) prints that command's arguments, defaults, and examples, with the
+  specific error last. Help goes to stderr, piped stdout stays machine-clean,
+  and the exit code remains 2.
+
 ## 0.3.1 — 2026-08-30
 
 ### Added
