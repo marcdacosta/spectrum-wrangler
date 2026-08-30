@@ -489,6 +489,19 @@ def _flag_help(parameter: Param) -> str:
     return f"{parameter.help} ({suffix})" if parameter.help else suffix
 
 
+def _accept_global_flags(sub: argparse.ArgumentParser) -> None:
+    """Accept --database and --format after the subcommand, where habit puts them.
+
+    SUPPRESS keeps an absent flag from overwriting the value the root parser
+    already resolved; a trailing flag wins over a leading one.
+    """
+    sub.add_argument("--database", default=argparse.SUPPRESS, type=Path,
+                     help="database path; same as the flag before the subcommand")
+    sub.add_argument("--format", dest="output_format", default=argparse.SUPPRESS,
+                     choices=("table", "json", "ndjson", "csv"),
+                     help="output format; same as the flag before the subcommand")
+
+
 def _add_params(sub: argparse.ArgumentParser, operation: Operation) -> None:
     groups = {
         key: sub.add_mutually_exclusive_group(required=True)
@@ -538,6 +551,7 @@ def parser() -> argparse.ArgumentParser:
             epilog=epilog, formatter_class=argparse.RawDescriptionHelpFormatter,
         )
         _add_params(sub, operation)
+        _accept_global_flags(sub)
         sub.set_defaults(operation=operation)
 
     caps = commands.add_parser(
@@ -547,13 +561,16 @@ def parser() -> argparse.ArgumentParser:
     )
     caps.set_defaults(func=lambda a: emit(
         "capabilities", capabilities_manifest(), None, a.output_format))
+    _accept_global_flags(caps)
 
     init = commands.add_parser("init", help="create or migrate the database schema")
     init.set_defaults(func=cmd_init)
+    _accept_global_flags(init)
 
     sources = commands.add_parser(
         "sources", help="compare the FCC's live directory with the reviewed archive set")
     sources.set_defaults(func=cmd_sources)
+    _accept_global_flags(sources)
 
     refresh = commands.add_parser(
         "refresh", help="download and import current weekly ULS license archives")
@@ -570,6 +587,7 @@ def parser() -> argparse.ArgumentParser:
     refresh.add_argument("--force-import", action="store_true",
                          help="re-import archives even when this content hash is already loaded")
     refresh.set_defaults(func=cmd_refresh)
+    _accept_global_flags(refresh)
     return root
 
 

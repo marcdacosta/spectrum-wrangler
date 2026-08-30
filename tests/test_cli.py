@@ -348,5 +348,35 @@ class HelpTextTests(unittest.TestCase):
         self.assertIn(cli.DB_ENV_VAR, root_help)
 
 
+class GlobalFlagPlacementTests(CliHarness):
+    def test_format_is_accepted_after_the_subcommand(self) -> None:
+        code, out, _ = self.run_cli("callsign", "TEST1", "--format", "ndjson")
+        self.assertEqual(code, 0)
+        row = json.loads(out.splitlines()[0])
+        self.assertEqual(row["callsign"], "TEST1")
+
+    def test_database_is_accepted_after_the_subcommand(self) -> None:
+        out, err = io.StringIO(), io.StringIO()
+        with contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
+            try:
+                cli.main(["callsign", "TEST1", "--database", str(self.path),
+                          "--format", "json"])
+            except SystemExit as raised:
+                self.assertEqual(int(raised.code or 0), 0)
+        self.assertTrue(json.loads(out.getvalue())["ok"])
+
+    def test_a_trailing_flag_wins_over_a_leading_one(self) -> None:
+        args = cli.parser().parse_args(
+            ["--database", "leading.sqlite3", "callsign", "X",
+             "--database", "trailing.sqlite3", "--format", "csv"])
+        self.assertEqual(args.database, Path("trailing.sqlite3"))
+        self.assertEqual(args.output_format, "csv")
+
+    def test_an_absent_trailing_flag_keeps_the_leading_value(self) -> None:
+        args = cli.parser().parse_args(["--format", "ndjson", "callsign", "X"])
+        self.assertEqual(args.output_format, "ndjson")
+        self.assertIsNone(args.database)
+
+
 if __name__ == "__main__":
     unittest.main()
