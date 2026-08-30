@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.3.1 — 2026-08-30
 
 ### Added
 * `init` is now first-time setup: on an empty database it downloads and imports
