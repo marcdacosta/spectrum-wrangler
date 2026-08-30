@@ -1,0 +1,7 @@
+# Ships the docs, the agent skill, and the hermetic test suite in the sdist so
+# a distribution packager can read and verify what they are building.
+include AGENTS.md
+include CHANGELOG.md
+recursive-include docs *.md *.png
+recursive-include skills *.md
+recursive-include tests *.py

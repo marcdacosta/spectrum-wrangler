@@ -8,8 +8,42 @@ version = "0.3.0"
 description = "A provenance-tracked local database and query interface for FCC spectrum licenses"
 readme = "README.md"
 requires-python = ">=3.11"
+license = "MIT"
+license-files = ["LICENSE"]
 authors = [{ name = "Marc DaCosta" }]
+keywords = [
+    "fcc",
+    "uls",
+    "spectrum",
+    "radio",
+    "licensing",
+    "callsign",
+    "sqlite",
+    "investigative-journalism",
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Environment :: Console",
+    "Intended Audience :: Science/Research",
+    "Intended Audience :: Legal Industry",
+    "Intended Audience :: Other Audience",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+    "Topic :: Communications :: Ham Radio",
+    "Topic :: Database",
+    "Topic :: Scientific/Engineering :: GIS",
+]
 dependencies = []
+
+[project.urls]
+Homepage = "https://github.com/marcdacosta/spectrum-wrangler"
+Documentation = "https://github.com/marcdacosta/spectrum-wrangler/blob/master/docs/QUERYING.md"
+Changelog = "https://github.com/marcdacosta/spectrum-wrangler/blob/master/CHANGELOG.md"
+Issues = "https://github.com/marcdacosta/spectrum-wrangler/issues"
 
 [project.scripts]
 spectrum-wrangler = "spectrum_wrangler.cli:main"

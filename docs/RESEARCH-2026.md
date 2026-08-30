@@ -16,7 +16,7 @@ FCC License View has not merely moved. In a July 1, 2025 response, the FCC Wirel
 
 For wireless licensing, the supported bulk source is the FCC Universal Licensing System (ULS) public-access publication. ULS provides service-specific ZIP archives containing pipe-delimited, two-character record files such as `HD.dat`, `EN.dat`, `LO.dat`, and `FR.dat`. Complete files are produced weekly and transaction files carry weekday changes. [FCC ULS Database Public Access Files](https://wireless.fcc.gov/uls/documentation/pa_intro24.pdf)
 
-Spectrum Wrangler 0.3 now ingests the live [FCC complete-file directory](https://data.fcc.gov/download/pub/uls/complete/), retains all 89 documented record layouts, builds fast normalized indexes, records file-level provenance, and exposes the result through a read-only Model Context Protocol query surface.
+Spectrum Wrangler 0.3 now ingests the live [FCC complete-file directory](https://data.fcc.gov/download/pub/uls/complete/), retains all 89 documented record layouts, builds fast normalized indexes, records file-level provenance, and exposes the result through a read-only query surface — at the time of writing an MCP server, since replaced by the CLI and skill (see the later note below).
 
 ## What changed in the publication
 

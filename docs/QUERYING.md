@@ -10,7 +10,7 @@ layer, so they agree with it.
 
 ## Start with what you have
 
-    python3 -m spectrum_wrangler status
+    spectrum-wrangler status
 
 This reports the issuing authority, each archive's FCC publication date, its
 SHA-256, and row counts. Every conclusion you draw is a statement about *those
@@ -53,7 +53,7 @@ specific location, not to the licence in general. Joining on
 
 To skip the joins entirely for a single licence, use the assembled record:
 
-    python3 -m spectrum_wrangler.agent license --callsign W1AW
+    spectrum-wrangler license --callsign W1AW
 
 ## Four things that will bite you
 
@@ -138,7 +138,7 @@ returns true great-circle distances.
 
 ## Worked example: what is expiring
 
-    python3 -m spectrum_wrangler.agent --format csv \
+    spectrum-wrangler --format csv \
       expirations --start 2026-10-01 --end 2026-12-31 --state NY --service PW
 
 Renewal windows are a reliable way into a story: a licence lapsing is a public
@@ -152,8 +152,8 @@ The normalized tables are typed, indexed, and cover the common questions. The
 original ULS names — `raw_hd` header, `raw_en` entities, `raw_lo` locations,
 `raw_an` antennas, `raw_fr` frequencies, `raw_em` emissions.
 
-    python3 -m spectrum_wrangler schema            # what exists
-    python3 -m spectrum_wrangler schema raw_fr     # exact columns
+    spectrum-wrangler schema            # what exists
+    spectrum-wrangler schema raw_fr     # exact columns
 
 Use raw when you need a field normalization does not carry, or when you are
 auditing against the source. `uls_raw_catalog` maps record codes to their
@@ -184,7 +184,7 @@ An FRN-only search is precise, incomplete, and fragmented.
 
 So `organization` reports the spread rather than collapsing it:
 
-    python3 -m spectrum_wrangler organization --name "NEW YORK CITY POLICE"
+    spectrum-wrangler organization --name "NEW YORK CITY POLICE"
 
 It returns the licence count, every name variant, every FRN those records
 carry, how many have none, and caveats naming which way the number is likely

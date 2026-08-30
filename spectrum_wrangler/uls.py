@@ -7,6 +7,7 @@ import json
 import math
 import re
 import sqlite3
+import sys
 import urllib.request
 import zipfile
 from dataclasses import dataclass
@@ -151,14 +152,26 @@ def download_archive(name: str, cache_dir: str | Path, *, force: bool = False) -
     temporary = destination.with_suffix(destination.suffix + ".part")
     digest = hashlib.sha256()
     size = 0
+    # Progress belongs to a person watching; piped stderr stays one line per archive.
+    show_progress = sys.stderr.isatty()
+    reported = 0
     try:
         with urllib.request.urlopen(request, timeout=120) as response, temporary.open("wb") as output:
             last_modified = response.headers.get("Last-Modified")
             etag = response.headers.get("ETag")
+            total = int(response.headers.get("Content-Length") or 0)
             while chunk := response.read(1024 * 1024):
                 output.write(chunk)
                 digest.update(chunk)
                 size += len(chunk)
+                if show_progress and size - reported >= 8 * 2**20:
+                    reported = size
+                    of_total = f" of {total / 2**20:,.0f}" if total else ""
+                    print(f"\r  {name}: {size / 2**20:,.0f}{of_total} MB",
+                          end="", file=sys.stderr, flush=True)
+        if reported:
+            print(f"\r  {name}: {size / 2**20:,.0f} MB downloaded",
+                  file=sys.stderr, flush=True)
     except Exception:
         temporary.unlink(missing_ok=True)
         raise

@@ -14,6 +14,7 @@ from __future__ import annotations
 import argparse
 import csv
 import json
+import os
 import sqlite3
 import sys
 from dataclasses import dataclass
@@ -50,9 +51,37 @@ from .uls import (
 )
 
 
-DEFAULT_DB = Path("data/spectrum-wrangler.sqlite3")
-DEFAULT_CACHE = Path("data/cache/uls")
-DEFAULT_MANIFEST = Path("data/source-manifest.json")
+DB_FILENAME = "spectrum-wrangler.sqlite3"
+DB_ENV_VAR = "SPECTRUM_WRANGLER_DB"
+REPOSITORY_DB = Path("data") / DB_FILENAME
+
+
+def data_home() -> Path:
+    """The per-user data directory, so an installed CLI works from anywhere."""
+    if sys.platform == "darwin":
+        return Path.home() / "Library" / "Application Support" / "spectrum-wrangler"
+    if os.name == "nt":
+        local = os.environ.get("LOCALAPPDATA")
+        return (Path(local) if local else Path.home() / "AppData" / "Local") / "spectrum-wrangler"
+    xdg = os.environ.get("XDG_DATA_HOME")
+    return (Path(xdg) if xdg else Path.home() / ".local" / "share") / "spectrum-wrangler"
+
+
+def default_database() -> Path:
+    """Resolve the database path when --database is not given.
+
+    $SPECTRUM_WRANGLER_DB wins; a database already built under ./data (the
+    repository-checkout workflow) is used next; otherwise the per-user data
+    directory. The download cache and provenance manifest always live beside
+    whichever database is chosen.
+    """
+    override = os.environ.get(DB_ENV_VAR)
+    if override:
+        return Path(override).expanduser()
+    if REPOSITORY_DB.exists():
+        return REPOSITORY_DB
+    return data_home() / DB_FILENAME
+
 
 EXIT_OK = 0
 EXIT_EMPTY = 1
@@ -238,7 +267,7 @@ OPERATIONS: tuple[Operation, ...] = (
             Param("end", help="YYYY-MM-DD or MM/DD/YYYY"),
             Param("service", help="radio service code"),
             Param("state", help="two-letter state"),
-            Param("status", default="A", help="licence status; default A for active"),
+            Param("status", default="A", help="licence status, e.g. A for active"),
             LIMIT,
         ),
         examples=("expirations --start 2026-10-01 --end 2026-12-31 --state NY",),
@@ -358,6 +387,10 @@ def cmd_sources(args: argparse.Namespace) -> int:
 
 
 def cmd_refresh(args: argparse.Namespace) -> int:
+    database = Path(args.database)
+    cache = args.cache if args.cache is not None else database.parent / "cache" / "uls"
+    manifest = (args.manifest if args.manifest is not None
+                else database.parent / "source-manifest.json")
     names = resolve_archives(args.archive)
     official = set(list_official_archives())
     missing = [name for name in names if name not in official]
@@ -365,11 +398,11 @@ def cmd_refresh(args: argparse.Namespace) -> int:
         raise RuntimeError(f"FCC directory does not currently list: {', '.join(missing)}")
     results = []
     normalized_changed = False
-    with connect(args.database) as connection:
+    with connect(database) as connection:
         initialize(connection)
         for name in names:
             print(f"downloading {name}", file=sys.stderr, flush=True)
-            download = download_archive(name, args.cache, force=args.force_download)
+            download = download_archive(name, cache, force=args.force_download)
             counts = None if args.force_import else imported_counts(
                 connection, download, require_raw=not args.normalized_only
             )
@@ -396,8 +429,8 @@ def cmd_refresh(args: argparse.Namespace) -> int:
         if normalized_changed:
             print("rebuilding search and spatial indexes", file=sys.stderr, flush=True)
             rebuild_indexes(connection)
-        write_manifest(connection, args.manifest)
-    _write_json({"database": str(Path(args.database).resolve()), "imports": results})
+        write_manifest(connection, manifest)
+    _write_json({"database": str(database.resolve()), "imports": results})
     return EXIT_OK
 
 
@@ -412,6 +445,9 @@ def capabilities_manifest() -> dict[str, Any]:
             str(EXIT_OK): "success",
             str(EXIT_EMPTY): "request understood, zero matching records",
             str(EXIT_ERROR): "invalid request or database error",
+        },
+        "environment": {
+            DB_ENV_VAR: "database path used when --database is not given",
         },
         "guidance": GUIDANCE,
         "commands": [
@@ -445,6 +481,14 @@ def capabilities_manifest() -> dict[str, Any]:
 
 # ---------------------------------------------------------------- parser ----
 
+def _flag_help(parameter: Param) -> str:
+    """The declared help, with the declared default appended so the two agree."""
+    if parameter.default is None:
+        return parameter.help
+    suffix = f"default: {parameter.default}"
+    return f"{parameter.help} ({suffix})" if parameter.help else suffix
+
+
 def _add_params(sub: argparse.ArgumentParser, operation: Operation) -> None:
     groups = {
         key: sub.add_mutually_exclusive_group(required=True)
@@ -461,7 +505,7 @@ def _add_params(sub: argparse.ArgumentParser, operation: Operation) -> None:
             target.add_argument(
                 f"--{parameter.name.replace('_', '-')}", dest=parameter.name,
                 type=parameter.type, default=parameter.default,
-                choices=parameter.choices, help=parameter.help,
+                choices=parameter.choices, help=_flag_help(parameter),
             )
 
 
@@ -471,7 +515,11 @@ def parser() -> argparse.ArgumentParser:
         description="Query the FCC's public spectrum licensing data locally.",
     )
     root.add_argument("--version", action="version", version=__version__)
-    root.add_argument("--database", default=DEFAULT_DB, type=Path)
+    root.add_argument(
+        "--database", default=None, type=Path,
+        help=f"SQLite database path (default: ${DB_ENV_VAR} if set, "
+             f"./{REPOSITORY_DB} if already built, else {data_home() / DB_FILENAME})",
+    )
     root.add_argument(
         "--format", dest="output_format",
         choices=("table", "json", "ndjson", "csv"), default=None,
@@ -511,12 +559,16 @@ def parser() -> argparse.ArgumentParser:
         "refresh", help="download and import current weekly ULS license archives")
     refresh.add_argument("--archive", action="append", default=[],
                          help="alias or archive name; repeat for several")
-    refresh.add_argument("--cache", default=DEFAULT_CACHE, type=Path)
-    refresh.add_argument("--manifest", default=DEFAULT_MANIFEST, type=Path)
-    refresh.add_argument("--force-download", action="store_true")
+    refresh.add_argument("--cache", default=None, type=Path,
+                         help="download cache directory (default: cache/uls beside the database)")
+    refresh.add_argument("--manifest", default=None, type=Path,
+                         help="provenance manifest path (default: source-manifest.json beside the database)")
+    refresh.add_argument("--force-download", action="store_true",
+                         help="re-download archives even when the cached copy's hash matches")
     refresh.add_argument("--normalized-only", action="store_true",
                          help="skip lossless raw tables to save space")
-    refresh.add_argument("--force-import", action="store_true")
+    refresh.add_argument("--force-import", action="store_true",
+                         help="re-import archives even when this content hash is already loaded")
     refresh.set_defaults(func=cmd_refresh)
     return root
 
@@ -526,7 +578,8 @@ def _run_operation(args: argparse.Namespace) -> int:
     database = Path(args.database)
     if not database.expanduser().exists():
         raise ValueError(
-            f"database does not exist: {database}; run `spectrum-wrangler refresh` first"
+            f"database not found: {database}; build it with `spectrum-wrangler refresh`, "
+            f"or point at an existing one with --database or ${DB_ENV_VAR}"
         )
     with connect(database, read_only=True) as connection:
         payload = operation.run(connection, args)
@@ -535,6 +588,8 @@ def _run_operation(args: argparse.Namespace) -> int:
 
 def main(argv: list[str] | None = None, *, default_format: str | None = None) -> None:
     args = parser().parse_args(argv)
+    if args.database is None:
+        args.database = default_database()
     if args.output_format is None:
         args.output_format = default_format or ("table" if sys.stdout.isatty() else "json")
     try:

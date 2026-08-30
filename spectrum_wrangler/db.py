@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import re
 import sqlite3
+import urllib.parse
 from importlib.resources import files
 from pathlib import Path
 from typing import Any
@@ -299,8 +300,11 @@ def connect(path: str | Path, *, read_only: bool = False) -> sqlite3.Connection:
     """Open a configured connection, optionally enforced read-only by SQLite."""
     db_path = Path(path).expanduser().resolve()
     if read_only:
+        # Percent-encode so Windows backslash-free paths, spaces, and the odd
+        # `?` or `#` survive SQLite's URI parser.
+        quoted = urllib.parse.quote(db_path.as_posix(), safe="/:")
         connection = sqlite3.connect(
-            f"file:{db_path}?mode=ro", uri=True, factory=ClosingConnection
+            f"file:{quoted}?mode=ro", uri=True, factory=ClosingConnection
         )
         connection.execute("PRAGMA query_only = ON")
     else:

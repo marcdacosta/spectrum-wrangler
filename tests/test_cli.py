@@ -4,6 +4,7 @@ import argparse
 import contextlib
 import io
 import json
+import os
 import tempfile
 import unittest
 from pathlib import Path
@@ -274,6 +275,77 @@ class OutputContractTests(CliHarness):
                 cli.main(["--database", str(missing), "status"])
         self.assertEqual(raised.exception.code, 2)
         self.assertFalse(missing.exists())
+
+    def test_a_missing_database_error_says_how_to_point_at_one(self) -> None:
+        err = io.StringIO()
+        with contextlib.redirect_stderr(err):
+            with self.assertRaises(SystemExit):
+                cli.main(["--format", "json", "--database", "/absent/nowhere.sqlite3",
+                          "status"])
+        message = json.loads(err.getvalue())["error"]
+        self.assertIn("refresh", message)
+        self.assertIn(cli.DB_ENV_VAR, message)
+
+
+class DatabaseResolutionTests(unittest.TestCase):
+    """--database wins, then $SPECTRUM_WRANGLER_DB, then ./data, then the user dir."""
+
+    def setUp(self) -> None:
+        self.directory = tempfile.TemporaryDirectory()
+        self.addCleanup(self.directory.cleanup)
+        self.previous_cwd = Path.cwd()
+        self.addCleanup(os.chdir, self.previous_cwd)
+        os.chdir(self.directory.name)
+
+    def test_environment_variable_wins_over_a_checkout_database(self) -> None:
+        (Path("data")).mkdir()
+        Path(cli.REPOSITORY_DB).touch()
+        with mock.patch.dict(os.environ, {cli.DB_ENV_VAR: "/elsewhere/db.sqlite3"}):
+            self.assertEqual(cli.default_database(), Path("/elsewhere/db.sqlite3"))
+
+    def test_a_checkout_database_is_used_when_present(self) -> None:
+        (Path("data")).mkdir()
+        Path(cli.REPOSITORY_DB).touch()
+        with mock.patch.dict(os.environ, {}, clear=False):
+            os.environ.pop(cli.DB_ENV_VAR, None)
+            self.assertEqual(cli.default_database(), cli.REPOSITORY_DB)
+
+    def test_the_per_user_directory_is_the_installed_default(self) -> None:
+        with mock.patch.dict(os.environ, {}, clear=False):
+            os.environ.pop(cli.DB_ENV_VAR, None)
+            resolved = cli.default_database()
+        self.assertEqual(resolved, cli.data_home() / cli.DB_FILENAME)
+        self.assertTrue(resolved.is_absolute())
+
+    def test_the_environment_variable_reaches_a_real_query(self) -> None:
+        database = Path(self.directory.name) / "resolved.sqlite3"
+        build_fixture(database)
+        out = io.StringIO()
+        with mock.patch.dict(os.environ, {cli.DB_ENV_VAR: str(database)}):
+            with contextlib.redirect_stdout(out):
+                try:
+                    cli.main(["--format", "json", "status"])
+                except SystemExit as raised:
+                    self.assertEqual(int(raised.code or 0), 0)
+        self.assertTrue(json.loads(out.getvalue())["ok"])
+
+
+class HelpTextTests(unittest.TestCase):
+    def test_flag_defaults_appear_in_generated_help(self) -> None:
+        parser = cli.parser()
+        subparsers = next(
+            action for action in parser._actions
+            if isinstance(action, argparse._SubParsersAction)
+        )
+        nearby_help = subparsers.choices["nearby"].format_help()
+        self.assertIn("default: 10.0", nearby_help)
+        self.assertIn("default: 100", nearby_help)
+        sql_help = subparsers.choices["sql"].format_help()
+        self.assertIn("default: 5000", sql_help)
+
+    def test_the_database_flag_documents_its_resolution(self) -> None:
+        root_help = cli.parser().format_help()
+        self.assertIn(cli.DB_ENV_VAR, root_help)
 
 
 if __name__ == "__main__":

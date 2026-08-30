@@ -26,7 +26,10 @@ behind, and an empty result means *"not in the loaded snapshots"* — never *"no
 such licence exists"*.
 
 If the database is missing, say so rather than guessing: it must be built with
-`spectrum-wrangler refresh`, which downloads 1.25 GB and takes about 15 minutes.
+`spectrum-wrangler refresh`, which downloads 1.25 GB and takes about 15 minutes
+(`--archive paging` is a small fast start). The database resolves from
+`--database`, then `$SPECTRUM_WRANGLER_DB`, then `./data/spectrum-wrangler.sqlite3`,
+then the per-user data directory — the error message names the path it tried.
 
 ## Finding things
 
